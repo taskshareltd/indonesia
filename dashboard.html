@@ -54,7 +54,7 @@
 
         <section class="card" style="margin-top: 30px;">
             <h3><i class="fas fa-users"></i> Program Undang Teman</h3>
-            <p>Dapatkan Rp 700 untuk setiap teman yang mendaftar!</p>
+            <p>Dapatkan **Rp 2.500** untuk setiap teman yang mendaftar!</p>
             <p style="margin-top: 10px; font-weight: 600;">Kode Anda: <span id="referral-code">...</span></p>
             <p style="margin-top: 5px; font-weight: 600;">Link Undangan:</p>
             <input type="text" id="referral-link-input" readonly style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #E2E8F0; border-radius: 4px;">
@@ -124,9 +124,20 @@
                     }).format(data.balance || 0);
                     referralCode.textContent = data.referral || 'N/A';
                     
-                    // Generate Referral Link
-                    const baseLink = window.location.origin + '/index.html';
-                    referralLinkInput.value = baseLink + '?ref=' + (data.referral || '');
+                    // =======================================================
+                    // === PENTING: PERUBAHAN LOGIKA PEMBUATAN LINK REFERRAL ===
+                    // =======================================================
+                    
+                    // 1. Ambil path dasar (misalnya https://shareltd.github.io/TaskShare/ )
+                    const basePath = window.location.origin + window.location.pathname.replace('dashboard.html', '');
+                    
+                    // 2. Buat link yang mengarah ke root atau index.html dengan parameter
+                    // Menggunakan basePath (root) akan memicu 404.html (jika sudah dibuat)
+                    const finalReferralLink = basePath + '?ref=' + (data.referral || '');
+                    
+                    referralLinkInput.value = finalReferralLink;
+
+                    // =======================================================
 
                     // Update Status Check-in
                     if (data.lastCheckin) {
@@ -232,10 +243,12 @@
         // --- Salin Link Referral ---
         copyReferralLinkButton.addEventListener('click', () => {
             const link = referralLinkInput.value;
+            // Gunakan navigator.clipboard.writeText untuk menyalin link
             navigator.clipboard.writeText(link).then(() => {
                 alert("Link Undangan berhasil disalin!");
             }).catch(err => {
                 console.error('Gagal menyalin link:', err);
+                alert("Gagal menyalin link secara otomatis. Silakan salin manual.");
             });
         });
 
