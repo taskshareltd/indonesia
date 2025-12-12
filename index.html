@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Daftar - TaskShare</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    
+    <div class="container" id="login-container">
+        <header>
+            <h1 style="color: var(--color-primary);">TaskShare</h1>
+            <p style="color: #64748B;">Selesaikan tugas, dapatkan saldo!</p>
+        </header>
+
+        <div id="referral-info" style="display: none; background-color: #FEF3C7; color: #92400E; padding: 10px; margin-bottom: 15px; border-radius: 6px; font-size: 0.9em; text-align: center;">
+            <i class="fas fa-info-circle"></i> Anda mendaftar melalui undangan.
+        </div>
+
+        <p id="mode-toggle" style="text-align: center; margin-bottom: 20px;">
+            Belum punya akun? <a href="#" id="toggle-link">Daftar Sekarang</a>
+        </p>
+
+        <form id="login-form">
+            <h3>Login</h3>
+            <input type="email" id="login-email" placeholder="Email" required>
+            <input type="password" id="login-password" placeholder="Kata Sandi" required>
+            <button type="submit" class="btn-primary" id="login-button">Login</button>
+            <p id="login-status" class="status-message"></p>
+        </form>
+
+        <form id="signup-form" style="display: none;">
+            <h3>Daftar Akun Baru</h3>
+            <input type="text" id="signup-username" placeholder="Nama Pengguna" required>
+            <input type="email" id="signup-email" placeholder="Email" required>
+            <input type="password" id="signup-password" placeholder="Kata Sandi (min 6 karakter)" required>
+            <button type="submit" class="btn-primary" id="signup-button">Daftar</button>
+            <p id="signup-status" class="status-message"></p>
+        </form>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="admin.html" style="color: #EF4444; font-size: 0.9em;">Akses Admin Panel</a>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <script src="firebase-config.js"></script>
+    
+    <script>
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const toggleLink = document.getElementById('toggle-link');
+        const modeToggle = document.getElementById('mode-toggle');
+        const referralInfo = document.getElementById('referral-info');
+        
+        let isLoginMode = true;
+        
+        // --- KONSTANTA REFERRAL ---
+        const REFERRAL_BONUS = 700; 
+
+        // Fungsi untuk mengambil parameter URL
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            const results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        };
+        
+        const referrerCode = getUrlParameter('ref');
+
+        // Toggle antara mode Login dan Daftar
+        toggleLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            isLoginMode = !isLoginMode;
+            
+            if (isLoginMode) {
+                loginForm.style.display = 'block';
+                signupForm.style.display = 'none';
+                toggleLink.textContent = 'Daftar Sekarang';
+                modeToggle.innerHTML = 'Belum punya akun? <a href="#" id="toggle-link-re">Daftar Sekarang</a>';
+                referralInfo.style.display = 'none';
+            } else {
+                loginForm.style.display = 'none';
+                signupForm.style.display = 'block';
+                toggleLink.textContent = 'Login Sekarang';
+                modeToggle.innerHTML = 'Sudah punya akun? <a href="#" id="toggle-link-re">Login Sekarang</a>';
+                
+                // Tampilkan info referral jika ada
+                if (referrerCode) {
+                    referralInfo.style.display = 'block';
+                    referralInfo.innerHTML = `<i class="fas fa-info-circle"></i> Anda mendaftar melalui undangan. Kode: <b>${referrerCode}</b>`;
+                }
+            }
+            // Re-attach listener karena innerHTML diganti
+            document.getElementById('toggle-link-re').addEventListener('click', document.getElementById('toggle-link').click);
+        });
+
+        // --- Handle Login ---
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const statusElement = document.getElementById('login-status');
+            const button = document.getElementById('login-button');
+
+            statusElement.textContent = '';
+            button.disabled = true;
+            button.textContent = 'Memproses...';
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                window.location.href = 'dashboard.html';
+            } catch (error) {
+                statusElement.textContent = `Login Gagal: ${error.message}`;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Login';
+            }
+        });
+
+        // --- Handle Daftar (Signup) ---
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('signup-username').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const statusElement = document.getElementById('signup-status');
+            const button = document.getElementById('signup-button');
+
+            statusElement.textContent = '';
+            button.disabled = true;
+            button.textContent = 'Mendaftar...';
+
+            try {
+                // 1. Buat Akun Firebase Auth
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const uid = userCredential.user.uid;
+                
+                // Buat kode referral unik (e.g., 6 karakter dari UID)
+                const referralCodeForNewUser = uid.substring(0, 6).toUpperCase();
+                
+                // 2. Simpan Data User ke Firestore
+                const newUserRef = db.collection("users").doc(uid);
+                await newUserRef.set({
+                    username: username,
+                    email: email,
+                    balance: 0, 
+                    referral: referralCodeForNewUser, // Simpan kode referral user ini
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // 3. --- LOGIKA BONUS REFERRAL ---
+                if (referrerCode) {
+                    const inviterRef = db.collection("users").where("referral", "==", referrerCode).limit(1);
+                    const inviterSnapshot = await inviterRef.get();
+
+                    if (!inviterSnapshot.empty) {
+                        const inviterDoc = inviterSnapshot.docs[0];
+                        const inviterUid = inviterDoc.id;
+                        
+                        // Gunakan Transaction untuk memastikan penambahan saldo aman
+                        await db.runTransaction(async (transaction) => {
+                            const inviterUserDoc = await transaction.get(inviterDoc.ref);
+                            
+                            // A. Tambahkan Saldo ke Pengundang (Rp 700)
+                            transaction.update(inviterDoc.ref, {
+                                balance: firebase.firestore.FieldValue.increment(REFERRAL_BONUS)
+                            });
+
+                            // B. Tambahkan Riwayat Bonus Undang Teman
+                            await db.collection("history").add({
+                                uid: inviterUid,
+                                type: "referral_bonus",
+                                amount: REFERRAL_BONUS,
+                                description: `Bonus Undang Teman: ${username}`,
+                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                        });
+                        console.log(`Bonus referral Rp ${REFERRAL_BONUS} diberikan kepada ${inviterUid}`);
+                    }
+                }
+                // --- END LOGIKA BONUS REFERRAL ---
+
+
+                statusElement.textContent = 'Pendaftaran berhasil! Mengalihkan ke dashboard...';
+                statusElement.style.color = 'var(--color-primary)';
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 1000);
+
+            } catch (error) {
+                console.error("Signup Error:", error);
+                statusElement.textContent = `Daftar Gagal: ${error.message}`;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Daftar';
+            }
+        });
+    </script>
+</body>
+</html>

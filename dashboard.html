@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - TaskShare</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    
+    <div class="container">
+        <header style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Halo, <span id="username-display">User!</span></h2>
+                <a href="#" id="logout-button" class="btn-secondary" style="width: auto; padding: 5px 10px; font-size: 0.9em;">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+            <p style="color: #64748B;">Selamat datang di TaskShare, tempat tugas menghasilkan saldo!</p>
+        </header>
+
+        <div class="card" style="background-color: var(--color-primary); color: white; padding: 15px; text-align: center;">
+            <p style="font-size: 0.9rem;">Saldo Anda Saat Ini</p>
+            <h1 id="balance-display" style="margin: 5px 0; font-size: 2rem;">Rp 0</h1>
+        </div>
+
+        <section class="card" style="margin-top: 20px; text-align: center;">
+            <h3><i class="fas fa-calendar-check"></i> Bonus Harian</h3>
+            <p>Klaim bonus Anda setiap hari untuk Rp 150!</p>
+            <p id="checkin-status" style="margin-top: 10px; font-weight: 600; color: orange;">Memuat status...</p>
+            <button id="checkin-button" class="btn-primary" style="margin-top: 15px;" disabled>
+                Klaim Bonus Harian (+Rp 150)
+            </button>
+        </section>
+
+        <section style="margin-top: 30px;">
+            <h3>Akses Cepat</h3>
+            <div style="display: flex; justify-content: space-around; gap: 10px; text-align: center;">
+                <a href="tasks.html" class="card shortcut-item">
+                    <i class="fas fa-clipboard-list" style="font-size: 1.5em; color: var(--color-primary);"></i>
+                    <p>Tugas</p>
+                </a>
+                <a href="withdraw.html" class="card shortcut-item">
+                    <i class="fas fa-money-bill-wave" style="font-size: 1.5em; color: var(--color-accent);"></i>
+                    <p>Tarik Saldo</p>
+                </a>
+                <a href="history.html" class="card shortcut-item">
+                    <i class="fas fa-history" style="font-size: 1.5em; color: #64748B;"></i>
+                    <p>Riwayat</p>
+                </a>
+            </div>
+        </section>
+
+        <section class="card" style="margin-top: 30px;">
+            <h3><i class="fas fa-users"></i> Program Undang Teman</h3>
+            <p>Dapatkan Rp 700 untuk setiap teman yang mendaftar!</p>
+            <p style="margin-top: 10px; font-weight: 600;">Kode Anda: <span id="referral-code">...</span></p>
+            <p style="margin-top: 5px; font-weight: 600;">Link Undangan:</p>
+            <input type="text" id="referral-link-input" readonly style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #E2E8F0; border-radius: 4px;">
+            <button id="copy-referral-link" class="btn-primary" style="width: auto; padding: 8px 15px; margin-top: 5px;">
+                <i class="fas fa-link"></i> Salin Link
+            </button>
+        </section>
+        
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item active">
+            <i class="fas fa-home"></i><p>Home</p>
+        </a>
+        <a href="tasks.html" class="nav-item">
+            <i class="fas fa-clipboard-list"></i><p>Tugas</p>
+        </a>
+        <a href="withdraw.html" class="nav-item">
+            <i class="fas fa-money-bill-wave"></i><p>Tarik</p>
+        </a>
+        <a href="history.html" class="nav-item">
+            <i class="fas fa-history"></i><p>Riwayat</p>
+        </a>
+    </nav>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <script src="firebase-config.js"></script>
+    
+    <script>
+        const usernameDisplay = document.getElementById('username-display');
+        const balanceDisplay = document.getElementById('balance-display');
+        const referralCode = document.getElementById('referral-code');
+        const referralLinkInput = document.getElementById('referral-link-input');
+        const copyReferralLinkButton = document.getElementById('copy-referral-link');
+        const logoutButton = document.getElementById('logout-button');
+        const checkinButton = document.getElementById('checkin-button');
+        const checkinStatus = document.getElementById('checkin-status');
+        
+        // --- KONSTANTA BARU ---
+        const DAILY_BONUS_AMOUNT = 150; // Bonus harian Rp 150
+        
+        let currentUid = null;
+        let lastCheckinDate = null;
+
+        // --- AUTH GUARD dan Data Realtime ---
+        auth.onAuthStateChanged(user => {
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            currentUid = user.uid;
+
+            // Load data user secara realtime (saldo, username, referral)
+            db.collection("users").doc(currentUid).onSnapshot(doc => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    
+                    // Update UI User
+                    usernameDisplay.textContent = data.username || data.email;
+                    balanceDisplay.textContent = new Intl.NumberFormat('id-ID', { 
+                        style: 'currency', 
+                        currency: 'IDR', 
+                        minimumFractionDigits: 0 
+                    }).format(data.balance || 0);
+                    referralCode.textContent = data.referral || 'N/A';
+                    
+                    // Generate Referral Link
+                    const baseLink = window.location.origin + '/index.html';
+                    referralLinkInput.value = baseLink + '?ref=' + (data.referral || '');
+
+                    // Update Status Check-in
+                    if (data.lastCheckin) {
+                         // Convert Firestore Timestamp ke JavaScript Date
+                        lastCheckinDate = data.lastCheckin.toDate();
+                    } else {
+                        lastCheckinDate = null;
+                    }
+                    checkCheckinStatus();
+                }
+            });
+        });
+
+        // --- Logika Waktu Klaim Harian (Per Hari Kalender) ---
+        function checkCheckinStatus() {
+            // Fungsi untuk membandingkan tanggal (mengabaikan jam)
+            const isSameDay = (d1, d2) => 
+                d1.getFullYear() === d2.getFullYear() &&
+                d1.getMonth() === d2.getMonth() &&
+                d1.getDate() === d2.getDate();
+                
+            const today = new Date();
+
+            checkinButton.textContent = `Klaim Bonus Harian (+Rp ${DAILY_BONUS_AMOUNT})`;
+
+            if (!lastCheckinDate) {
+                // Belum pernah check-in
+                checkinStatus.textContent = "Siap! Klaim bonus harian pertama Anda sekarang.";
+                checkinStatus.style.color = 'var(--color-primary)';
+                checkinButton.disabled = false;
+            } else if (isSameDay(today, lastCheckinDate)) {
+                // Sudah klaim hari ini
+                checkinStatus.textContent = `Sudah diklaim hari ini. Kembali lagi besok!`;
+                checkinStatus.style.color = 'red';
+                checkinButton.disabled = true;
+            } else {
+                // Bisa klaim hari ini
+                checkinStatus.textContent = "Ayo, klaim bonus harian Anda sekarang!";
+                checkinStatus.style.color = 'var(--color-primary)';
+                checkinButton.disabled = false;
+            }
+        }
+
+        // --- Handle Klaim Bonus ---
+        checkinButton.addEventListener('click', async () => {
+            if (checkinButton.disabled) return;
+            
+            checkinButton.disabled = true;
+            checkinButton.textContent = "Memproses Klaim...";
+
+            try {
+                const docRef = db.collection("users").doc(currentUid);
+
+                // Menggunakan transaction untuk memastikan atomicity
+                await db.runTransaction(async (transaction) => {
+                    const doc = await transaction.get(docRef);
+                    if (!doc.exists) throw "User not found";
+
+                    const userData = doc.data();
+                    let lastCheckinTS = userData.lastCheckin ? userData.lastCheckin.toDate() : null;
+                    
+                    const isSameDay = (d1, d2) => 
+                        d1.getFullYear() === d2.getFullYear() &&
+                        d1.getMonth() === d2.getMonth() &&
+                        d1.getDate() === d2.getDate();
+                        
+                    // Double check untuk menghindari double klaim saat terjadi jeda
+                    if (lastCheckinTS && isSameDay(new Date(), lastCheckinTS)) {
+                        throw new Error("Bonus harian sudah diklaim hari ini.");
+                    }
+                    
+                    // 1. Update Saldo dan lastCheckin
+                    const newBalance = (userData.balance || 0) + DAILY_BONUS_AMOUNT;
+                    transaction.update(docRef, {
+                        balance: newBalance,
+                        lastCheckin: firebase.firestore.FieldValue.serverTimestamp() // Update waktu klaim
+                    });
+
+                    // 2. Buat Riwayat Transaksi
+                    await db.collection("history").add({
+                        uid: currentUid,
+                        type: "daily_checkin",
+                        amount: DAILY_BONUS_AMOUNT,
+                        description: "Bonus Klaim Harian",
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+                
+                checkinStatus.textContent = `Berhasil! Bonus Rp ${DAILY_BONUS_AMOUNT} ditambahkan.`;
+                checkinStatus.style.color = 'var(--color-primary)';
+                
+            } catch (error) {
+                console.error("Check-in Error:", error);
+                checkinStatus.textContent = `Gagal klaim: ${error.message}`;
+                checkinStatus.style.color = 'red';
+                checkCheckinStatus(); 
+            } finally {
+                checkinButton.disabled = false;
+            }
+        });
+
+
+        // --- Salin Link Referral ---
+        copyReferralLinkButton.addEventListener('click', () => {
+            const link = referralLinkInput.value;
+            navigator.clipboard.writeText(link).then(() => {
+                alert("Link Undangan berhasil disalin!");
+            }).catch(err => {
+                console.error('Gagal menyalin link:', err);
+            });
+        });
+
+        // --- Logout ---
+        logoutButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await auth.signOut();
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error("Logout Error:", error);
+                alert("Gagal logout: " + error.message);
+            }
+        });
+    </script>
+</body>
+</html>

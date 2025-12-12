@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Admin - TaskShare</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Styling Khusus Admin Panel */
+        body {
+            background-color: #F8F8F8; 
+            max-width: 1000px; /* Lebar lebih luas untuk admin */
+            padding-bottom: 20px;
+        }
+        .admin-header {
+            background-color: #EF4444; 
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .tab-nav {
+            display: flex;
+            border-bottom: 2px solid #E5E7EB;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 10px 15px;
+            cursor: pointer;
+            background-color: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            font-weight: 600;
+            color: #64748B;
+            transition: all 0.3s;
+        }
+        .tab-button.active {
+            color: #EF4444;
+            border-bottom: 3px solid #EF4444;
+        }
+        .tab-content {
+            display: none;
+            padding: 15px 0;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .action-button {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        .btn-approve { background-color: var(--color-primary); color: white; border: none; }
+        .btn-reject { background-color: #FCA5A5; color: #DC2626; border: none; }
+    </style>
+</head>
+<body>
+    
+    <div class="container">
+        <div class="admin-header">
+            <h1><i class="fas fa-cog"></i> Admin Panel TaskShare</h1>
+            <button id="admin-logout" class="btn-primary" style="background-color: white; color: #EF4444; width: auto; padding: 10px 15px;">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+
+        <nav class="tab-nav">
+            <button class="tab-button active" data-tab="dashboard-tab"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
+            <button class="tab-button" data-tab="tasks-tab"><i class="fas fa-list-check"></i> Verifikasi Tugas (<span id="pending-tasks-count">0</span>)</button>
+            <button class="tab-button" data-tab="withdraws-tab"><i class="fas fa-dollar-sign"></i> Proses Withdraw (<span id="pending-withdraws-count">0</span>)</button>
+            <button class="tab-button" data-tab="users-tab"><i class="fas fa-users"></i> Manajemen User</button>
+            <button class="tab-button" data-tab="master-tasks-tab"><i class="fas fa-edit"></i> Kelola Tugas</button>
+        </nav>
+
+        <div id="dashboard-tab" class="tab-content active">
+            <div class="card">
+                <h3>Statistik Singkat</h3>
+                <p>Total User: <span id="total-users">...</span></p>
+                <p>Total Saldo User: <span id="total-balance">...</span></p>
+            </div>
+            <div class="card" style="margin-top: 20px;">
+                <h3>Berikan Saldo Manual</h3>
+                <form id="manual-balance-form">
+                    <input type="email" id="target-email" placeholder="Email User Target" required>
+                    <input type="number" id="manual-amount" placeholder="Jumlah Saldo (+/-)" required>
+                    <textarea id="manual-desc" placeholder="Deskripsi/Alasan Bonus" required></textarea>
+                    <button type="submit" class="btn-admin btn-primary">Kirim Saldo</button>
+                    <p id="manual-balance-status" style="margin-top: 10px; color: red;"></p>
+                </form>
+            </div>
+        </div>
+
+        <div id="tasks-tab" class="tab-content">
+            <h3>Tugas Menunggu Verifikasi</h3>
+            <div id="pending-tasks-list">
+                <p>Memuat tugas...</p>
+            </div>
+        </div>
+
+        <div id="withdraws-tab" class="tab-content">
+            <h3>Permintaan Withdraw Pending</h3>
+            <div id="pending-withdraws-list">
+                <p>Memuat permintaan withdraw...</p>
+            </div>
+        </div>
+
+        <div id="users-tab" class="tab-content">
+            <h3>Daftar Pengguna</h3>
+            <input type="text" id="user-search" placeholder="Cari User Berdasarkan Username/Email">
+            <div id="users-list">
+                <p>Memuat daftar pengguna...</p>
+            </div>
+        </div>
+
+        <div id="master-tasks-tab" class="tab-content">
+            <h3>Buat Tugas Baru</h3>
+            <form id="create-task-form" class="card">
+                <input type="text" id="task-title" placeholder="Judul Tugas (Contoh: Share ke 5 Grup WA)" required>
+                <textarea id="task-description" placeholder="Deskripsi Rinci Tugas" required></textarea>
+                <input type="number" id="task-reward" placeholder="Reward (IDR)" required min="100">
+                <input type="text" id="task-image-url" placeholder="URL Gambar Petunjuk (Opsional)">
+                <textarea id="task-caption" placeholder="Teks Caption yang Harus Disalin User (Wajib)" required></textarea>
+                <button type="submit" class="btn-primary" style="background-color: var(--color-secondary);">Simpan Tugas Baru</button>
+                <p id="create-task-status" style="margin-top: 10px; color: red;"></p>
+            </form>
+
+            <h3 style="margin-top: 30px;">Daftar Tugas Aktif</h3>
+            <div id="active-tasks-list">
+                <p>Memuat tugas aktif...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <script src="firebase-config.js"></script>
+    
+    <script>
+        const ADMIN_SESSION_KEY = "taskshare_admin_logged_in";
+        const totalUsers = document.getElementById('total-users');
+        const totalBalance = document.getElementById('total-balance');
+        const pendingTasksCount = document.getElementById('pending-tasks-count');
+        const pendingWithdrawsCount = document.getElementById('pending-withdraws-count');
+        const pendingTasksList = document.getElementById('pending-tasks-list');
+        const pendingWithdrawsList = document.getElementById('pending-withdraws-list');
+        const usersList = document.getElementById('users-list');
+        const manualBalanceForm = document.getElementById('manual-balance-form');
+        const manualBalanceStatus = document.getElementById('manual-balance-status');
+        const createTaskForm = document.getElementById('create-task-form');
+        const createTaskStatus = document.getElementById('create-task-status');
+        const activeTasksList = document.getElementById('active-tasks-list');
+        
+        let allTasks = {}; // Cache tugas
+
+        // --- AUTH GUARD ---
+        if (sessionStorage.getItem(ADMIN_SESSION_KEY) !== 'true') {
+            window.location.href = 'admin.html';
+        }
+        document.getElementById('admin-logout').addEventListener('click', () => {
+            sessionStorage.removeItem(ADMIN_SESSION_KEY);
+            window.location.href = 'admin.html';
+        });
+
+        // --- TAB SWITCHING ---
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                button.classList.add('active');
+                document.getElementById(button.dataset.tab).classList.add('active');
+
+                // Load data spesifik saat tab diaktifkan (Opsional: hanya load saat pertama)
+                if (button.dataset.tab === 'users-tab') loadUsers();
+                if (button.dataset.tab === 'master-tasks-tab') loadMasterTasks();
+            });
+        });
+
+        // --- INITIAL LOAD ---
+        async function initialLoad() {
+            await loadMasterTasks(true); // Load tasks first and cache them
+            loadPendingTasks();
+            loadPendingWithdraws();
+            loadDashboardStats();
+        }
+        initialLoad();
+
+        // --- HELPER FORMATTING ---
+        const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+
+        // ===================================
+        // 1. DASHBOARD & MANUAL BALANCE
+        // ===================================
+
+        async function loadDashboardStats() {
+            // Ini akan membutuhkan query yang efisien, untuk proyek sederhana kita GET semua user
+            const usersSnapshot = await db.collection('users').get();
+            let totalB = 0;
+            
+            usersSnapshot.forEach(doc => {
+                totalB += doc.data().balance || 0;
+            });
+
+            totalUsers.textContent = usersSnapshot.size.toLocaleString('id-ID');
+            totalBalance.textContent = formatIDR(totalB);
+        }
+
+        manualBalanceForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const targetEmail = document.getElementById('target-email').value;
+            const amount = parseInt(document.getElementById('manual-amount').value);
+            const desc = document.getElementById('manual-desc').value;
+            manualBalanceStatus.textContent = '';
+
+            try {
+                // Cari UID berdasarkan Email
+                const userSnapshot = await db.collection('users').where('email', '==', targetEmail).limit(1).get();
+                
+                if (userSnapshot.empty) {
+                    manualBalanceStatus.textContent = 'Error: User dengan email tersebut tidak ditemukan.';
+                    return;
+                }
+
+                const uid = userSnapshot.docs[0].id;
+                
+                // Update Saldo
+                await db.collection("users").doc(uid).update({
+                    balance: firebase.firestore.FieldValue.increment(amount)
+                });
+
+                // Buat Riwayat
+                await db.collection("history").add({
+                    uid: uid,
+                    type: "bonus",
+                    amount: amount,
+                    description: desc,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                manualBalanceStatus.style.color = 'var(--color-primary)';
+                manualBalanceStatus.textContent = `Berhasil memberikan ${formatIDR(amount)} ke ${targetEmail}.`;
+                manualBalanceForm.reset();
+                loadDashboardStats(); // Refresh stats
+
+            } catch (error) {
+                manualBalanceStatus.style.color = 'red';
+                manualBalanceStatus.textContent = `Gagal: ${error.message}`;
+            }
+        });
+
+
+        // ===================================
+        // 2. VERIFIKASI TUGAS
+        // ===================================
+
+        function loadPendingTasks() {
+            db.collection("user_tasks")
+              .where("status", "==", "pending")
+              .orderBy("submittedAt", "desc")
+              .onSnapshot(snapshot => {
+                pendingTasksList.innerHTML = '';
+                pendingTasksCount.textContent = snapshot.size;
+
+                if (snapshot.empty) {
+                    pendingTasksList.innerHTML = '<p>Tidak ada tugas yang menunggu verifikasi.</p>';
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const submission = doc.data();
+                    const submissionId = doc.id;
+                    const task = allTasks[submission.taskId];
+                    const taskTitle = task ? task.title : 'Tugas Dihapus';
+                    const taskReward = task ? formatIDR(task.reward) : 'Rp 0';
+
+                    // Asumsi: Ambil data user (username/email) secara async, atau gunakan Promise.all
+                    db.collection('users').doc(submission.uid).get().then(userDoc => {
+                        const userData = userDoc.exists ? userDoc.data() : {username: 'Unknown', email: 'N/A'};
+                        
+                        pendingTasksList.innerHTML += `
+                            <div class="card" data-submission-id="${submissionId}" style="border: 1px solid #FFE4E6; background-color: #FFF7F8;">
+                                <h4>${taskTitle} (${taskReward})</h4>
+                                <p style="font-size: 0.9em;">User: <strong>${userData.username}</strong> (${userData.email})</p>
+                                <p style="font-size: 0.8em; color: #64748B;">Submitted: ${submission.submittedAt.toDate().toLocaleString()}</p>
+                                
+                                <img src="${submission.screenshot}" alt="Bukti Tugas" style="max-width: 300px; max-height: 200px; margin: 10px 0; border-radius: 5px; cursor: pointer;" onclick="window.open(this.src)">
+
+                                <div style="margin-top: 10px;">
+                                    <button class="action-button btn-approve" onclick="verifyTask('${submissionId}', '${submission.uid}', '${submission.taskId}', 'approved')">Approve</button>
+                                    <button class="action-button btn-reject" onclick="verifyTask('${submissionId}', '${submission.uid}', '${submission.taskId}', 'rejected')">Reject</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                });
+              });
+        }
+
+        async function verifyTask(submissionId, uid, taskId, status) {
+            const task = allTasks[taskId];
+            if (!task) {
+                alert("Task reward data not found!");
+                return;
+            }
+
+            try {
+                // 1. Update status submission
+                await db.collection("user_tasks").doc(submissionId).update({
+                    status: status
+                });
+
+                if (status === 'approved') {
+                    // 2. Tambahkan Saldo
+                    await db.collection("users").doc(uid).update({
+                        balance: firebase.firestore.FieldValue.increment(task.reward)
+                    });
+
+                    // 3. Buat Riwayat
+                    await db.collection("history").add({
+                        uid: uid,
+                        type: "task",
+                        amount: task.reward,
+                        description: `Reward Tugas disetujui: ${task.title}`,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    alert(`Tugas disetujui, saldo ${formatIDR(task.reward)} ditambahkan ke user.`);
+                } else {
+                    alert("Tugas ditolak. Tidak ada perubahan saldo.");
+                }
+
+            } catch (error) {
+                console.error("Verification Error:", error);
+                alert(`Gagal memverifikasi tugas: ${error.message}`);
+            }
+        }
+
+
+        // ===================================
+        // 3. PROSES WITHDRAW
+        // ===================================
+
+        function loadPendingWithdraws() {
+             db.collection("withdraws")
+              .where("status", "==", "pending")
+              .orderBy("requestedAt", "desc")
+              .onSnapshot(snapshot => {
+                pendingWithdrawsList.innerHTML = '';
+                pendingWithdrawsCount.textContent = snapshot.size;
+
+                if (snapshot.empty) {
+                    pendingWithdrawsList.innerHTML = '<p>Tidak ada permintaan withdraw pending.</p>';
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const wd = doc.data();
+                    const wdId = doc.id;
+                    
+                    db.collection('users').doc(wd.uid).get().then(userDoc => {
+                        const userData = userDoc.exists ? userDoc.data() : {username: 'Unknown', email: 'N/A'};
+                        const amountFormatted = formatIDR(wd.amount);
+
+                        pendingWithdrawsList.innerHTML += `
+                            <div class="card" style="border: 1px solid #DBEAFE; background-color: #F7FAFF;">
+                                <h4>Withdraw ${amountFormatted}</h4>
+                                <p>User: <strong>${userData.username}</strong> (${userData.email})</p>
+                                <p>Tujuan: ${wd.method} - No. ${wd.number}</p>
+                                <p style="font-size: 0.8em; color: #64748B;">Diajukan: ${wd.requestedAt.toDate().toLocaleString()}</p>
+                                
+                                <div style="margin-top: 10px;">
+                                    <button class="action-button btn-approve" onclick="processWithdraw('${wdId}', 'done', ${wd.amount}, '${wd.uid}')" style="background-color: #3B82F6;">Tandai Selesai</button>
+                                    <button class="action-button btn-reject" onclick="processWithdraw('${wdId}', 'rejected', ${wd.amount}, '${wd.uid}')">Tolak & Refund</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                });
+              });
+        }
+
+        async function processWithdraw(wdId, status, amount, uid) {
+            try {
+                // 1. Update status withdraw
+                await db.collection("withdraws").doc(wdId).update({
+                    status: status
+                });
+
+                if (status === 'rejected') {
+                    // 2. REFUND SALDO: Jika ditolak, saldo yang sudah dikurangi saat pengajuan harus dikembalikan
+                    await db.collection("users").doc(uid).update({
+                        balance: firebase.firestore.FieldValue.increment(amount)
+                    });
+
+                    // 3. Buat Riwayat Refund
+                    await db.collection("history").add({
+                        uid: uid,
+                        type: "withdraw_refund",
+                        amount: amount,
+                        description: `Withdraw ditolak, saldo ${formatIDR(amount)} dikembalikan.`,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    alert("Withdraw ditolak, saldo berhasil dikembalikan ke user.");
+                } else {
+                    // Jika 'done', saldo sudah dikurangi saat user mengajukan. Hanya perlu update status.
+                    alert("Withdraw ditandai selesai.");
+                }
+
+            } catch (error) {
+                console.error("Withdrawal Process Error:", error);
+                alert(`Gagal memproses withdraw: ${error.message}`);
+            }
+        }
+
+        // ===================================
+        // 4. MANAJEMEN USER
+        // ===================================
+        
+        // Simpel user load (tanpa real time)
+        async function loadUsers(query = '') {
+            usersList.innerHTML = '<p>Memuat...</p>';
+            let usersRef = db.collection('users').orderBy('createdAt', 'desc').limit(20);
+            
+            // Pencarian (hanya contoh sederhana, pencarian Firestore biasanya butuh index/external search)
+            if (query.length > 2) {
+                // Untuk pencarian yang lebih baik, Anda harus menggunakan ElasticSearch/Algolia atau Firebase Extensions
+                alert("Pencarian User dalam Firebase adalah fitur kompleks yang membutuhkan Indeks atau solusi external. Menampilkan 20 user terbaru.");
+            }
+
+            const snapshot = await usersRef.get();
+            usersList.innerHTML = '';
+
+            snapshot.forEach(doc => {
+                const user = doc.data();
+                const uid = doc.id;
+                
+                usersList.innerHTML += `
+                    <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${user.username}</strong> (${user.email})<br>
+                            <span style="color: var(--color-primary); font-size: 0.9em;">Saldo: ${formatIDR(user.balance)}</span> | 
+                            <span style="font-size: 0.8em;">Ref: ${user.referral}</span>
+                        </div>
+                        <button class="action-button btn-reject" onclick="deleteUser('${uid}', '${user.email}')" style="background-color: #EF4444;">
+                            Hapus User
+                        </button>
+                    </div>
+                `;
+            });
+        }
+        
+        document.getElementById('user-search').addEventListener('input', (e) => {
+            // Untuk tugas sederhana, kita hanya trigger load saat klik tab.
+            // Di sini, Anda bisa debounce dan memanggil loadUsers(e.target.value)
+        });
+
+        async function deleteUser(uid, email) {
+            if (!confirm(`Yakin ingin menghapus user ${email}? Ini akan menghapus data di Firestore, tapi akun Auth-nya harus dihapus manual di Firebase Console.`)) {
+                return;
+            }
+            try {
+                // Hapus dokumen Firestore (akun auth harus dihapus manual)
+                await db.collection('users').doc(uid).delete();
+                alert(`Data user ${email} berhasil dihapus dari Firestore.`);
+                loadUsers();
+            } catch (error) {
+                 alert(`Gagal menghapus user: ${error.message}`);
+            }
+        }
+
+
+        // ===================================
+        // 5. KELOLA MASTER DATA TUGAS
+        // ===================================
+
+        // Load tasks dan cache (isInitial = true hanya di awal)
+        async function loadMasterTasks(isInitial = false) {
+            activeTasksList.innerHTML = '<p>Memuat...</p>';
+            const snapshot = await db.collection('tasks').get();
+            activeTasksList.innerHTML = '';
+            
+            if (isInitial) allTasks = {}; // Reset cache
+
+            snapshot.forEach(doc => {
+                const task = doc.data();
+                const taskId = doc.id;
+                allTasks[taskId] = task;
+
+                activeTasksList.innerHTML += `
+                    <div class="card" style="margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong>${task.title}</strong>
+                            <span style="color: var(--color-accent);">${formatIDR(task.reward)}</span>
+                        </div>
+                        <p style="font-size: 0.9em; margin-top: 5px;">Deskripsi: ${task.description}</p>
+                        <p style="font-size: 0.8em; color: #64748B;">Caption: ${task.caption.substring(0, 50)}...</p>
+                        <button class="action-button btn-reject" onclick="deleteTask('${taskId}', '${task.title}')">Hapus</button>
+                    </div>
+                `;
+            });
+            if (isInitial) loadPendingTasks(); // Pastikan tugas pending di-load ulang setelah cache terisi
+        }
+
+        createTaskForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const title = document.getElementById('task-title').value;
+            const description = document.getElementById('task-description').value;
+            const reward = parseInt(document.getElementById('task-reward').value);
+            const image = document.getElementById('task-image-url').value;
+            const caption = document.getElementById('task-caption').value;
+            createTaskStatus.textContent = '';
+
+            try {
+                await db.collection("tasks").add({
+                    title,
+                    description,
+                    reward,
+                    image,
+                    caption
+                });
+
+                createTaskStatus.style.color = 'var(--color-primary)';
+                createTaskStatus.textContent = 'Tugas baru berhasil ditambahkan!';
+                createTaskForm.reset();
+                loadMasterTasks(); // Refresh daftar tugas
+            } catch (error) {
+                createTaskStatus.style.color = 'red';
+                createTaskStatus.textContent = `Gagal membuat tugas: ${error.message}`;
+            }
+        });
+
+        async function deleteTask(taskId, title) {
+            if (!confirm(`Yakin menghapus tugas "${title}"? Tugas yang sudah di-submit user akan tetap ada, tapi reward-nya tidak terdefinisi.`)) {
+                return;
+            }
+            try {
+                await db.collection('tasks').doc(taskId).delete();
+                alert(`Tugas "${title}" berhasil dihapus.`);
+                loadMasterTasks();
+            } catch (error) {
+                 alert(`Gagal menghapus tugas: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>
