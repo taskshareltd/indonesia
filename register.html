@@ -80,7 +80,7 @@
                         referrerUid = referrerSnapshot.docs[0].id; // Ambil UID pengundang
                         
                         // Opsional: Langsung berikan reward ke pengundang (sesuai flow F. Referral)
-                        const REFERRAL_REWARD = 5000;
+                        const REFERRAL_REWARD = 500;
                         await db.collection("users").doc(referrerUid).update({
                             balance: firebase.firestore.FieldValue.increment(REFERRAL_REWARD)
                         });
@@ -129,4 +129,5 @@
         });
     </script>
 </body>
+
 </html>
