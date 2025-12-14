@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penarikan Saldo - TaskShare</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .balance-card {
+            background: linear-gradient(135deg, var(--color-primary), #28a071);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+        
+        .method-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border: 2px solid #E2E8F0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .method-option:hover {
+            border-color: var(--color-primary);
+            background-color: #F0F9FF;
+        }
+        
+        .method-option.selected {
+            border-color: var(--color-primary);
+            background-color: #F0F9FF;
+        }
+        
+        .method-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            color: white;
+        }
+        
+        .dana-bg { background-color: #00B2FF; }
+        .ovo-bg { background-color: #4C2A8C; }
+        .gopay-bg { background-color: #00AA13; }
+        .bank-bg { background-color: #1E40AF; }
+        
+        .withdraw-history-item {
+            padding: 15px;
+            border-bottom: 1px solid #E2E8F0;
+            transition: background-color 0.3s;
+        }
+        
+        .withdraw-history-item:hover {
+            background-color: #F8FAFC;
+        }
+        
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            display: inline-block;
+        }
+        
+        .status-pending { background-color: #FEF3C7; color: #92400E; }
+        .status-success { background-color: #D1FAE5; color: #065F46; }
+        .status-rejected { background-color: #FEE2E2; color: #991B1B; }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info-box {
+            background-color: #F0F9FF;
+            border-left: 4px solid var(--color-secondary);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .method-details {
+            display: none;
+            padding: 15px;
+            background-color: #F8FAFC;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid #E2E8F0;
+        }
+        
+        .filter-btn {
+            padding: 6px 12px;
+            background: #E2E8F0;
+            border: none;
+            border-radius: 6px;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+        
+        .filter-btn.active {
+            background: var(--color-primary);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="container">
+        <header style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="color: var(--color-accent);">
+                        <i class="fas fa-wallet"></i> Tarik Saldo
+                    </h2>
+                    <p style="color: #64748B;">Ajukan penarikan dana ke e-wallet atau rekening bank Anda.</p>
+                </div>
+                <a href="dashboard.html" style="color: var(--color-primary); text-decoration: none;">
+                    <i class="fas fa-arrow-left"></i> Kembali
+                </a>
+            </div>
+        </header>
+
+        <!-- SALDO CARD -->
+        <div class="balance-card">
+            <p style="font-size: 0.9rem; opacity: 0.9;">
+                <i class="fas fa-wallet"></i> Saldo Tersedia
+            </p>
+            <h1 id="current-balance" style="margin: 10px 0; font-size: 2.5rem; font-weight: 700;">Rp 0</h1>
+            <p style="font-size: 0.9rem; opacity: 0.9;">
+                Minimal penarikan: <strong>Rp 25.000</strong>
+            </p>
+        </div>
+
+        <!-- FORM PENARIKAN -->
+        <section class="card" style="margin-top: 20px;">
+            <h3><i class="fas fa-paper-plane"></i> Ajukan Penarikan</h3>
+            
+            <div class="info-box">
+                <p style="margin: 0; color: #0369A1;">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>Waktu Proses:</strong> 1-24 jam kerja<br>
+                    <strong>Biaya Admin:</strong> Tidak ada<br>
+                    <strong>Limit:</strong> Maks 3x penarikan per hari
+                </p>
+            </div>
+            
+            <form id="withdraw-form">
+                <!-- JUMLAH -->
+                <div style="margin-bottom: 20px;">
+                    <label for="amount" style="display: block; margin-bottom: 8px; font-weight: 600;">
+                        <i class="fas fa-money-bill-wave"></i> Jumlah Penarikan (IDR)
+                    </label>
+                    <div style="position: relative;">
+                        <span style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #64748B; font-weight: 600;">Rp</span>
+                        <input type="number" 
+                               id="amount" 
+                               placeholder="25000" 
+                               min="25000" 
+                               step="1000"
+                               required
+                               style="width: 100%; padding: 12px 12px 12px 40px; border: 2px solid #E2E8F0; border-radius: 8px; font-size: 1.1rem; font-weight: 600;">
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+                        <button type="button" class="quick-amount" data-amount="25000" 
+                                style="padding: 8px 12px; background: #E2E8F0; border: none; border-radius: 6px; font-size: 0.9em; cursor: pointer;">
+                            Rp 25K
+                        </button>
+                        <button type="button" class="quick-amount" data-amount="50000"
+                                style="padding: 8px 12px; background: #E2E8F0; border: none; border-radius: 6px; font-size: 0.9em; cursor: pointer;">
+                            Rp 50K
+                        </button>
+                        <button type="button" class="quick-amount" data-amount="100000"
+                                style="padding: 8px 12px; background: #E2E8F0; border: none; border-radius: 6px; font-size: 0.9em; cursor: pointer;">
+                            Rp 100K
+                        </button>
+                        <button type="button" class="quick-amount" data-amount="500000"
+                                style="padding: 8px 12px; background: #E2E8F0; border: none; border-radius: 6px; font-size: 0.9em; cursor: pointer;">
+                            Rp 500K
+                        </button>
+                    </div>
+                    <p id="amount-error" style="color: #EF4444; font-size: 0.9em; margin-top: 8px; display: none;"></p>
+                </div>
+
+                <!-- METODE PEMBAYARAN -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">
+                        <i class="fas fa-mobile-alt"></i> Metode Penarikan
+                    </label>
+                    
+                    <div class="method-option" data-method="DANA">
+                        <div class="method-icon dana-bg">
+                            <i class="fas fa-mobile-alt"></i>
+                        </div>
+                        <div style="flex-grow: 1;">
+                            <p style="font-weight: 600; margin: 0;">DANA</p>
+                            <p style="color: #64748B; font-size: 0.9em; margin: 0;">Instan, fee: Rp 0</p>
+                        </div>
+                        <i class="fas fa-check-circle" style="color: var(--color-primary); display: none;"></i>
+                    </div>
+                    
+                    <div class="method-option" data-method="OVO">
+                        <div class="method-icon ovo-bg">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div style="flex-grow: 1;">
+                            <p style="font-weight: 600; margin: 0;">OVO</p>
+                            <p style="color: #64748B; font-size: 0.9em; margin: 0;">Instan, fee: Rp 0</p>
+                        </div>
+                        <i class="fas fa-check-circle" style="color: var(--color-primary); display: none;"></i>
+                    </div>
+                    
+                    <div class="method-option" data-method="GOPAY">
+                        <div class="method-icon gopay-bg">
+                            <i class="fas fa-qrcode"></i>
+                        </div>
+                        <div style="flex-grow: 1;">
+                            <p style="font-weight: 600; margin: 0;">GOPAY</p>
+                            <p style="color: #64748B; font-size: 0.9em; margin: 0;">Instan, fee: Rp 0</p>
+                        </div>
+                        <i class="fas fa-check-circle" style="color: var(--color-primary); display: none;"></i>
+                    </div>
+                    
+                    <div class="method-option" data-method="BANK">
+                        <div class="method-icon bank-bg">
+                            <i class="fas fa-university"></i>
+                        </div>
+                        <div style="flex-grow: 1;">
+                            <p style="font-weight: 600; margin: 0;">Transfer Bank</p>
+                            <p style="color: #64748B; font-size: 0.9em; margin: 0;">1-3 jam, fee: Rp 0</p>
+                        </div>
+                        <i class="fas fa-check-circle" style="color: var(--color-primary); display: none;"></i>
+                    </div>
+                    
+                    <input type="hidden" id="method" required>
+                    
+                    <!-- DETAIL METODE -->
+                    <div id="method-details" class="method-details">
+                        <div id="dana-details" style="display: none;">
+                            <p style="font-weight: 600; color: #00B2FF; margin-bottom: 10px;">
+                                <i class="fas fa-mobile-alt"></i> DANA
+                            </p>
+                            <div style="background: #F0F9FF; padding: 10px; border-radius: 6px;">
+                                <p style="margin: 0; font-size: 0.9em; color: #0369A1;">
+                                    <strong>Yang harus disiapkan:</strong><br>
+                                    1. <strong>Nama Pemilik:</strong> Nama sesuai KTP/SIM<br>
+                                    2. <strong>Nomor Telepon:</strong> Nomor terdaftar di DANA<br>
+                                    <br>
+                                    <strong>Contoh:</strong><br>
+                                    • Nama: <strong>Bambang Sugianto</strong><br>
+                                    • Nomor: <strong>081234567890</strong>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div id="ovo-details" style="display: none;">
+                            <p style="font-weight: 600; color: #4C2A8C; margin-bottom: 10px;">
+                                <i class="fas fa-bolt"></i> OVO
+                            </p>
+                            <div style="background: #F5F3FF; padding: 10px; border-radius: 6px;">
+                                <p style="margin: 0; font-size: 0.9em; color: #5B21B6;">
+                                    <strong>Yang harus disiapkan:</strong><br>
+                                    1. <strong>Nama Pemilik:</strong> Nama sesuai KTP/SIM<br>
+                                    2. <strong>Nomor Telepon:</strong> Nomor terdaftar di OVO<br>
+                                    <br>
+                                    <strong>Contoh:</strong><br>
+                                    • Nama: <strong>Siti Rahayu</strong><br>
+                                    • Nomor: <strong>081298765432</strong>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div id="gopay-details" style="display: none;">
+                            <p style="font-weight: 600; color: #00AA13; margin-bottom: 10px;">
+                                <i class="fas fa-qrcode"></i> GOPAY
+                            </p>
+                            <div style="background: #F0FDF4; padding: 10px; border-radius: 6px;">
+                                <p style="margin: 0; font-size: 0.9em; color: #047857;">
+                                    <strong>Yang harus disiapkan:</strong><br>
+                                    1. <strong>Nama Pemilik:</strong> Nama sesuai KTP/SIM<br>
+                                    2. <strong>Nomor Telepon:</strong> Nomor terdaftar di GoPay<br>
+                                    <br>
+                                    <strong>Contoh:</strong><br>
+                                    • Nama: <strong>Ahmad Fauzi</strong><br>
+                                    • Nomor: <strong>081377788899</strong>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div id="bank-details" style="display: none;">
+                            <p style="font-weight: 600; color: #1E40AF; margin-bottom: 10px;">
+                                <i class="fas fa-university"></i> Transfer Bank
+                            </p>
+                            <div style="background: #EFF6FF; padding: 10px; border-radius: 6px;">
+                                <p style="margin: 0; font-size: 0.9em; color: #1E40AF;">
+                                    <strong>Yang harus disiapkan:</strong><br>
+                                    1. <strong>Nama Pemilik:</strong> Nama sesuai buku tabungan<br>
+                                    2. <strong>Nomor Rekening:</strong> Nomor rekening lengkap<br>
+                                    <br>
+                                    <strong>Contoh:</strong><br>
+                                    • Nama: <strong>PT. Toko Jaya Abadi</strong><br>
+                                    • Rekening: <strong>1234567890</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NAMA PEMILIK -->
+                <div style="margin-bottom: 20px;">
+                    <label for="account-name" style="display: block; margin-bottom: 8px; font-weight: 600;">
+                        <i class="fas fa-user-circle"></i> Nama Pemilik
+                    </label>
+                    <input type="text" 
+                           id="account-name" 
+                           placeholder="Contoh: Bambang Sugianto" 
+                           required
+                           style="width: 100%; padding: 12px; border: 2px solid #E2E8F0; border-radius: 8px; font-size: 1rem;">
+                    <p style="font-size: 0.85em; color: #64748B; margin-top: 5px;">
+                        Nama pemilik akun sesuai KTP/SIM
+                    </p>
+                </div>
+
+                <!-- NOMOR TELEPON/REKENING -->
+                <div style="margin-bottom: 25px;">
+                    <label for="account-number" style="display: block; margin-bottom: 8px; font-weight: 600;">
+                        <i class="fas fa-address-card"></i> <span id="number-label">Nomor Telepon</span>
+                    </label>
+                    <input type="text" 
+                           id="account-number" 
+                           placeholder="Contoh: 081234567890" 
+                           required
+                           style="width: 100%; padding: 12px; border: 2px solid #E2E8F0; border-radius: 8px; font-size: 1rem;">
+                    <p id="number-hint" style="font-size: 0.85em; color: #64748B; margin-top: 5px;">
+                        Nomor telepon terdaftar di e-wallet
+                    </p>
+                </div>
+
+                <!-- SUBMIT BUTTON -->
+                <button type="submit" class="btn-primary" id="withdraw-button" style="padding: 16px; font-size: 1.1rem;">
+                    <i class="fas fa-paper-plane"></i> Ajukan Penarikan
+                </button>
+                
+                <!-- STATUS MESSAGE -->
+                <div id="withdraw-status" style="margin-top: 15px; text-align: center;"></div>
+            </form>
+        </section>
+
+        <!-- RIWAYAT PENARIKAN -->
+        <section class="card" style="margin-top: 25px;">
+            <h3><i class="fas fa-history"></i> Riwayat Penarikan</h3>
+            
+            <div style="margin-bottom: 15px;">
+                <button id="filter-all" class="filter-btn active">Semua</button>
+                <button id="filter-pending" class="filter-btn">Pending</button>
+                <button id="filter-success" class="filter-btn">Sukses</button>
+                <button id="filter-rejected" class="filter-btn">Ditolak</button>
+            </div>
+            
+            <div id="withdraw-history" style="max-height: 400px; overflow-y: auto;">
+                <div style="text-align: center; padding: 30px; color: #64748B;">
+                    <i class="fas fa-history" style="font-size: 2em; margin-bottom: 10px;"></i>
+                    <p>Memuat riwayat penarikan...</p>
+                </div>
+            </div>
+            
+            <div id="withdraw-stats" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #E2E8F0; display: none;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.9em;">
+                    <div>
+                        <p style="color: #64748B; margin: 0;">Total Penarikan</p>
+                        <p style="font-weight: 600; margin: 0;" id="total-withdrawals">Rp 0</p>
+                    </div>
+                    <div>
+                        <p style="color: #64748B; margin: 0;">Berhasil</p>
+                        <p style="font-weight: 600; color: #10B981; margin: 0;" id="success-withdrawals">0</p>
+                    </div>
+                    <div>
+                        <p style="color: #64748B; margin: 0;">Pending</p>
+                        <p style="font-weight: 600; color: #F59E0B; margin: 0;" id="pending-withdrawals">0</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- INFORMASI PENTING -->
+        <section class="card" style="margin-top: 20px; background-color: #FFFBEB; border-left: 4px solid #F59E0B;">
+            <h4 style="color: #92400E;">
+                <i class="fas fa-exclamation-triangle"></i> Informasi Penting
+            </h4>
+            <ul style="color: #92400E; padding-left: 20px; margin: 10px 0;">
+                <li>Penarikan diproses manual oleh Admin (1-24 jam kerja)</li>
+                <li>Pastikan data nama dan nomor sudah benar</li>
+                <li>Saldo akan langsung dipotong saat pengajuan</li>
+                <li>Jika ditolak, saldo akan dikembalikan otomatis</li>
+                <li>Max 3x penarikan per hari untuk mencegah spam</li>
+                <li>Hubungi Admin jika ada kendala</li>
+            </ul>
+        </section>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item">
+            <i class="fas fa-home"></i><p>Home</p>
+        </a>
+        <a href="tasks.html" class="nav-item">
+            <i class="fas fa-clipboard-list"></i><p>Tugas</p>
+        </a>
+        <a href="withdraw.html" class="nav-item active">
+            <i class="fas fa-money-bill-wave"></i><p>Tarik</p>
+        </a>
+        <a href="history.html" class="nav-item">
+            <i class="fas fa-history"></i><p>Riwayat</p>
+        </a>
+    </nav>
+
+    <!-- MODAL SUCCESS -->
+    <div id="success-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+        <div class="card" style="max-width: 400px; width: 90%; text-align: center;">
+            <button onclick="closeSuccessModal()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.2em; color: #64748B; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+            <div style="background: #D1FAE5; color: #065F46; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 2.5em;">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h3 style="color: var(--color-primary); margin-bottom: 10px;">Berhasil!</h3>
+            <p id="success-message" style="margin-bottom: 20px; color: #64748B;">Penarikan berhasil diajukan</p>
+            <button onclick="closeSuccessModal()" class="btn-primary" style="width: 100%;">OK</button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <script src="firebase-config.js"></script>
+    
+    <script>
+        // ============================================
+        // GLOBAL VARIABLES
+        // ============================================
+        const currentBalanceElement = document.getElementById('current-balance');
+        const withdrawForm = document.getElementById('withdraw-form');
+        const amountInput = document.getElementById('amount');
+        const methodSelect = document.getElementById('method');
+        const accountNameInput = document.getElementById('account-name');
+        const accountNumberInput = document.getElementById('account-number');
+        const withdrawButton = document.getElementById('withdraw-button');
+        const withdrawStatusElement = document.getElementById('withdraw-status');
+        const withdrawHistory = document.getElementById('withdraw-history');
+        const successModal = document.getElementById('success-modal');
+        const successMessage = document.getElementById('success-message');
+        const numberLabel = document.getElementById('number-label');
+        const numberHint = document.getElementById('number-hint');
+        
+        const MIN_WITHDRAWAL = 25000;
+        const MAX_WITHDRAWALS_PER_DAY = 3;
+        
+        let currentUid = null;
+        let userCurrentBalance = 0;
+        let lastWithdrawTime = 0;
+        let isProcessing = false;
+        
+        // Rate limiting cache
+        const withdrawCache = {
+            lastRequest: 0,
+            countToday: 0,
+            cooldown: 10000 // 10 detik antara request
+        };
+
+        // ============================================
+        // AUTH & INITIAL LOAD
+        // ============================================
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                console.log("No user, redirecting to login");
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            currentUid = user.uid;
+            console.log("User authenticated:", currentUid);
+            
+            try {
+                // Load user balance
+                const userDoc = await db.collection("users").doc(currentUid).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    userCurrentBalance = userData.balance || 0;
+                    updateBalanceDisplay();
+                } else {
+                    console.error("User document not found");
+                    showMessage("Data user tidak ditemukan", "error");
+                }
+                
+                // Load withdraw history
+                await loadWithdrawHistory();
+                
+                // Setup event listeners
+                setupEventListeners();
+                
+                // Check today's withdrawal count
+                await checkDailyLimit();
+                
+            } catch (error) {
+                console.error("Initial load error:", error);
+                showMessage("Gagal memuat data. Refresh halaman.", "error");
+            }
+        });
+
+        // ============================================
+        // EVENT LISTENERS SETUP
+        // ============================================
+        function setupEventListeners() {
+            // Quick amount buttons
+            document.querySelectorAll('.quick-amount').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const amount = parseInt(e.target.dataset.amount);
+                    amountInput.value = amount;
+                    validateAmount();
+                });
+            });
+            
+            // Method selection
+            document.querySelectorAll('.method-option').forEach(option => {
+                option.addEventListener('click', (e) => {
+                    // Remove previous selection
+                    document.querySelectorAll('.method-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                        opt.querySelector('.fa-check-circle').style.display = 'none';
+                    });
+                    
+                    // Select current
+                    const method = e.currentTarget.dataset.method;
+                    e.currentTarget.classList.add('selected');
+                    e.currentTarget.querySelector('.fa-check-circle').style.display = 'inline-block';
+                    methodSelect.value = method;
+                    
+                    // Update label based on method
+                    updateNumberLabel(method);
+                    
+                    // Show method details
+                    showMethodDetails(method);
+                });
+            });
+            
+            // Real-time amount validation
+            amountInput.addEventListener('input', validateAmount);
+            
+            // Form submission
+            withdrawForm.addEventListener('submit', handleWithdrawSubmit);
+            
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.filter-btn').forEach(b => {
+                        b.classList.remove('active');
+                        b.style.background = '#E2E8F0';
+                        b.style.color = '#1E293B';
+                    });
+                    
+                    e.target.classList.add('active');
+                    e.target.style.background = 'var(--color-primary)';
+                    e.target.style.color = 'white';
+                    
+                    const filter = e.target.id.replace('filter-', '');
+                    filterWithdrawHistory(filter);
+                });
+            });
+        }
+        
+        function updateNumberLabel(method) {
+            if (method === 'BANK') {
+                numberLabel.textContent = 'Nomor Rekening';
+                numberHint.textContent = 'Nomor rekening lengkap (tanpa spasi)';
+                accountNumberInput.placeholder = 'Contoh: 1234567890';
+            } else {
+                numberLabel.textContent = 'Nomor Telepon';
+                numberHint.textContent = 'Nomor telepon terdaftar';
+                accountNumberInput.placeholder = 'Contoh: 081234567890';
+            }
+        }
+
+        // ============================================
+        // HELPER FUNCTIONS
+        // ============================================
+        function updateBalanceDisplay() {
+            currentBalanceElement.textContent = formatCurrency(userCurrentBalance);
+        }
+        
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(amount);
+        }
+        
+        function formatDate(date) {
+            if (!date) return 'N/A';
+            const d = date.toDate ? date.toDate() : new Date(date);
+            return d.toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function showMessage(message, type = 'info') {
+            withdrawStatusElement.innerHTML = `
+                <div style="padding: 12px; border-radius: 8px; margin: 10px 0;
+                     ${type === 'error' ? 'background: #FEE2E2; color: #991B1B; border-left: 4px solid #EF4444;' : 
+                       type === 'success' ? 'background: #D1FAE5; color: #065F46; border-left: 4px solid #10B981;' :
+                       'background: #F0F9FF; color: #0369A1; border-left: 4px solid var(--color-secondary);'}">
+                    <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+                    ${message}
+                </div>
+            `;
+        }
+        
+        function showMethodDetails(method) {
+            // Hide all details first
+            document.querySelectorAll('#method-details > div').forEach(div => {
+                div.style.display = 'none';
+            });
+            
+            // Show selected method details
+            const detailsDiv = document.getElementById(`${method.toLowerCase()}-details`);
+            if (detailsDiv) {
+                document.getElementById('method-details').style.display = 'block';
+                detailsDiv.style.display = 'block';
+            } else {
+                document.getElementById('method-details').style.display = 'none';
+            }
+        }
+        
+        function validateAmount() {
+            const amount = parseInt(amountInput.value) || 0;
+            const errorElement = document.getElementById('amount-error');
+            
+            if (amount < MIN_WITHDRAWAL) {
+                errorElement.textContent = `Minimal penarikan Rp ${MIN_WITHDRAWAL.toLocaleString()}`;
+                errorElement.style.display = 'block';
+                return false;
+            } else if (amount > userCurrentBalance) {
+                errorElement.textContent = `Saldo tidak cukup. Tersedia: ${formatCurrency(userCurrentBalance)}`;
+                errorElement.style.display = 'block';
+                return false;
+            } else {
+                errorElement.style.display = 'none';
+                return true;
+            }
+        }
+        
+        async function checkDailyLimit() {
+            try {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const todayWithdrawals = await db.collection("withdraws")
+                    .where("uid", "==", currentUid)
+                    .where("requestedAt", ">=", today)
+                    .get();
+                
+                withdrawCache.countToday = todayWithdrawals.size;
+                
+                if (withdrawCache.countToday >= MAX_WITHDRAWALS_PER_DAY) {
+                    showMessage(`Anda sudah mencapai batas ${MAX_WITHDRAWALS_PER_DAY}x penarikan hari ini. Coba lagi besok.`, "error");
+                    withdrawButton.disabled = true;
+                }
+                
+            } catch (error) {
+                console.error("Error checking daily limit:", error);
+            }
+        }
+
+        // ============================================
+        // WITHDRAW SUBMISSION
+        // ============================================
+        async function handleWithdrawSubmit(e) {
+            e.preventDefault();
+            
+            // Prevent multiple submissions
+            if (isProcessing) {
+                showMessage("Sedang memproses penarikan sebelumnya...", "info");
+                return;
+            }
+            
+            // Rate limiting check
+            const now = Date.now();
+            if (now - withdrawCache.lastRequest < withdrawCache.cooldown) {
+                const secondsLeft = Math.ceil((withdrawCache.cooldown - (now - withdrawCache.lastRequest)) / 1000);
+                showMessage(`Tunggu ${secondsLeft} detik sebelum ajukan lagi.`, "error");
+                return;
+            }
+            
+            // Validate inputs
+            if (!validateAmount()) return;
+            
+            const amount = parseInt(amountInput.value);
+            const method = methodSelect.value;
+            const accountName = accountNameInput.value.trim();
+            const accountNumber = accountNumberInput.value.trim();
+            
+            if (!method) {
+                showMessage("Pilih metode penarikan terlebih dahulu.", "error");
+                return;
+            }
+            
+            if (!accountName) {
+                showMessage("Masukkan nama pemilik akun.", "error");
+                return;
+            }
+            
+            if (!accountNumber) {
+                const label = method === 'BANK' ? 'nomor rekening' : 'nomor telepon';
+                showMessage(`Masukkan ${label}.`, "error");
+                return;
+            }
+            
+            // Check daily limit
+            if (withdrawCache.countToday >= MAX_WITHDRAWALS_PER_DAY) {
+                showMessage(`Batas penarikan ${MAX_WITHDRAWALS_PER_DAY}x per hari sudah tercapai.`, "error");
+                return;
+            }
+            
+            // Start processing
+            isProcessing = true;
+            withdrawCache.lastRequest = now;
+            
+            const originalButtonText = withdrawButton.innerHTML;
+            withdrawButton.disabled = true;
+            withdrawButton.innerHTML = '<span class="loading-spinner"></span> Memproses...';
+            
+            try {
+                // 1. Create withdraw document
+                const withdrawData = {
+                    uid: currentUid,
+                    amount: amount,
+                    method: method,
+                    accountName: accountName,
+                    accountNumber: accountNumber,
+                    status: "pending",
+                    requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    userBalance: userCurrentBalance
+                };
+                
+                console.log("Creating withdraw document...");
+                const withdrawRef = await db.collection("withdraws").add(withdrawData);
+                console.log("Withdraw created with ID:", withdrawRef.id);
+                
+                // 2. Update user balance
+                const newBalance = userCurrentBalance - amount;
+                console.log("Updating user balance from", userCurrentBalance, "to", newBalance);
+                await db.collection("users").doc(currentUid).update({
+                    balance: newBalance
+                });
+                
+                // 3. Create history record
+                try {
+                    await db.collection("history").add({
+                        uid: currentUid,
+                        type: "withdraw_request",
+                        amount: -amount,
+                        description: `Penarikan ke ${method} (${accountName}) sebesar Rp ${amount.toLocaleString()}`,
+                        withdrawId: withdrawRef.id,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log("History record created");
+                } catch (histError) {
+                    console.warn("Could not create history record:", histError);
+                }
+                
+                // SUCCESS - Update local state
+                userCurrentBalance = newBalance;
+                withdrawCache.countToday++;
+                
+                // Update UI
+                updateBalanceDisplay();
+                
+                // Show success message
+                successMessage.innerHTML = `
+                    Penarikan <strong>Rp ${amount.toLocaleString()}</strong> berhasil diajukan!<br><br>
+                    <small style="color: #64748B;">
+                        Status: <span style="color: #F59E0B;">MENUNGGU VERIFIKASI</span><br>
+                        ID: ${withdrawRef.id.substring(0, 8)}...
+                    </small>
+                `;
+                successModal.style.display = 'flex';
+                
+                // Reset form
+                withdrawForm.reset();
+                document.querySelectorAll('.method-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                    opt.querySelector('.fa-check-circle').style.display = 'none';
+                });
+                document.getElementById('method-details').style.display = 'none';
+                updateNumberLabel('DANA'); // Reset to default
+                
+                // Reload history after delay
+                setTimeout(() => {
+                    loadWithdrawHistory();
+                }, 1000);
+                
+            } catch (error) {
+                console.error("Withdraw submission error:", error);
+                
+                let errorMsg = "Gagal mengajukan penarikan";
+                
+                if (error.code === 'resource-exhausted' || error.message.includes('429')) {
+                    errorMsg = "Server terlalu sibuk. Coba lagi dalam 30 detik.";
+                    withdrawCache.cooldown = 30000;
+                } else if (error.code === 'failed-precondition') {
+                    errorMsg = "Data tidak konsisten. Refresh halaman.";
+                } else if (error.code === 'permission-denied') {
+                    errorMsg = "Akses ditolak. Login ulang.";
+                } else if (error.code === 'unavailable') {
+                    errorMsg = "Koneksi internet bermasalah. Coba lagi.";
+                } else {
+                    errorMsg = `Error: ${error.message || "Tidak diketahui"}`;
+                }
+                
+                showMessage(errorMsg, "error");
+                
+            } finally {
+                // Reset button state after delay
+                setTimeout(() => {
+                    withdrawButton.disabled = false;
+                    withdrawButton.innerHTML = '<i class="fas fa-paper-plane"></i> Ajukan Penarikan';
+                    isProcessing = false;
+                }, 2000);
+            }
+        }
+
+        // ============================================
+        // WITHDRAW HISTORY
+        // ============================================
+        async function loadWithdrawHistory() {
+            try {
+                console.log("Loading withdraw history for UID:", currentUid);
+                
+                // Show loading state
+                withdrawHistory.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #64748B;">
+                        <span class="loading-spinner" style="margin-right: 10px;"></span>
+                        Memuat riwayat...
+                    </div>
+                `;
+                
+                // Get withdrawals
+                let snapshot;
+                try {
+                    snapshot = await db.collection("withdraws")
+                        .where("uid", "==", currentUid)
+                        .orderBy("requestedAt", "desc")
+                        .limit(20)
+                        .get();
+                } catch (queryError) {
+                    if (queryError.code === 'failed-precondition') {
+                        snapshot = await db.collection("withdraws")
+                            .where("uid", "==", currentUid)
+                            .limit(20)
+                            .get();
+                    } else {
+                        throw queryError;
+                    }
+                }
+                
+                console.log("Found", snapshot.size, "withdrawals");
+                
+                if (snapshot.empty) {
+                    withdrawHistory.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #64748B;">
+                            <i class="fas fa-inbox" style="font-size: 3em; margin-bottom: 15px; opacity: 0.5;"></i>
+                            <p>Belum ada riwayat penarikan</p>
+                            <p style="font-size: 0.9em; margin-top: 10px;">
+                                Ajukan penarikan pertama Anda di atas!
+                            </p>
+                        </div>
+                    `;
+                    document.getElementById('withdraw-stats').style.display = 'none';
+                    return;
+                }
+                
+                let totalAmount = 0;
+                let pendingCount = 0;
+                let successCount = 0;
+                let rejectedCount = 0;
+                
+                let historyHTML = '';
+                
+                snapshot.forEach(doc => {
+                    const wd = doc.data();
+                    const amount = wd.amount || 0;
+                    totalAmount += amount;
+                    
+                    let statusBadge = '';
+                    let statusText = wd.status || 'pending';
+                    
+                    if (statusText === 'pending') {
+                        statusBadge = '<span class="status-badge status-pending">PENDING</span>';
+                        pendingCount++;
+                    } else if (statusText === 'done' || statusText === 'approved' || statusText === 'success') {
+                        statusBadge = '<span class="status-badge status-success">SUKSES</span>';
+                        successCount++;
+                    } else if (statusText === 'rejected' || statusText === 'failed') {
+                        statusBadge = '<span class="status-badge status-rejected">DITOLAK</span>';
+                        rejectedCount++;
+                    } else {
+                        statusBadge = `<span class="status-badge" style="background: #E2E8F0; color: #64748B;">${statusText.toUpperCase()}</span>`;
+                    }
+                    
+                    historyHTML += `
+                        <div class="withdraw-history-item" data-status="${statusText}">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <div>
+                                    <p style="font-weight: 600; margin: 0; color: #1E293B;">
+                                        ${wd.method || 'N/A'} 
+                                        <span style="font-size: 0.9em; color: #64748B;">• ${wd.accountName || 'N/A'}</span>
+                                    </p>
+                                    <p style="font-size: 0.85em; color: #94A3B8; margin: 2px 0 0 0;">
+                                        ${wd.accountNumber || ''}
+                                    </p>
+                                </div>
+                                <div style="text-align: right;">
+                                    <p style="font-weight: 700; color: #1E293B; margin: 0 0 5px 0;">
+                                        ${formatCurrency(amount)}
+                                    </p>
+                                    ${statusBadge}
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #94A3B8;">
+                                <span>${formatDate(wd.requestedAt)}</span>
+                                <span>ID: ${doc.id.substring(0, 8)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                withdrawHistory.innerHTML = historyHTML;
+                
+                // Update stats
+                document.getElementById('total-withdrawals').textContent = formatCurrency(totalAmount);
+                document.getElementById('success-withdrawals').textContent = successCount;
+                document.getElementById('pending-withdrawals').textContent = pendingCount;
+                document.getElementById('withdraw-stats').style.display = 'flex';
+                
+                console.log("History loaded successfully");
+                
+            } catch (error) {
+                console.error("Error loading withdraw history:", error);
+                
+                let errorMsg = "Gagal memuat riwayat";
+                if (error.code === 'permission-denied') {
+                    errorMsg = "Akses ditolak. Login ulang.";
+                } else if (error.code === 'unavailable') {
+                    errorMsg = "Koneksi internet bermasalah.";
+                }
+                
+                withdrawHistory.innerHTML = `
+                    <div style="text-align: center; padding: 30px; color: #EF4444;">
+                        <i class="fas fa-exclamation-circle" style="font-size: 2em; margin-bottom: 10px;"></i>
+                        <p>${errorMsg}</p>
+                        <button onclick="loadWithdrawHistory()" 
+                                style="margin-top: 10px; padding: 8px 15px; background: var(--color-primary); color: white; border: none; border-radius: 6px; cursor: pointer;">
+                            <i class="fas fa-redo"></i> Coba Lagi
+                        </button>
+                    </div>
+                `;
+                
+                document.getElementById('withdraw-stats').style.display = 'none';
+            }
+        }
+        
+        function filterWithdrawHistory(filter) {
+            const items = withdrawHistory.querySelectorAll('.withdraw-history-item');
+            let visibleCount = 0;
+            
+            items.forEach(item => {
+                const status = item.dataset.status;
+                
+                if (filter === 'all' || filter === status) {
+                    item.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            if (visibleCount === 0) {
+                const emptyMessage = document.createElement('div');
+                emptyMessage.style.textAlign = 'center';
+                emptyMessage.style.padding = '30px';
+                emptyMessage.style.color = '#64748B';
+                emptyMessage.innerHTML = `
+                    <i class="fas fa-filter" style="font-size: 2em; margin-bottom: 10px;"></i>
+                    <p>Tidak ada riwayat dengan status "${filter}"</p>
+                `;
+                
+                const existingMsg = withdrawHistory.querySelector('.no-results-message');
+                if (existingMsg) {
+                    existingMsg.remove();
+                }
+                
+                emptyMessage.className = 'no-results-message';
+                withdrawHistory.appendChild(emptyMessage);
+            } else {
+                const existingMsg = withdrawHistory.querySelector('.no-results-message');
+                if (existingMsg) {
+                    existingMsg.remove();
+                }
+            }
+        }
+
+        // ============================================
+        // MODAL FUNCTIONS
+        // ============================================
+        function closeSuccessModal() {
+            successModal.style.display = 'none';
+        }
+
+        // ============================================
+        // DEBUG HELPERS
+        // ============================================
+        window.debugWithdraw = async () => {
+            console.log("=== WITHDRAW DEBUG ===");
+            console.log("Current UID:", currentUid);
+            console.log("Current Balance:", userCurrentBalance);
+            console.log("Today's Count:", withdrawCache.countToday);
+            
+            try {
+                const userDoc = await db.collection("users").doc(currentUid).get();
+                console.log("User Data:", userDoc.exists ? userDoc.data() : "NOT FOUND");
+                
+                const testQuery = await db.collection("withdraws")
+                    .where("uid", "==", currentUid)
+                    .limit(1)
+                    .get();
+                console.log("Withdraw Test Query:", testQuery.size, "results");
+                
+                if (testQuery.size > 0) {
+                    testQuery.forEach(doc => {
+                        console.log("Sample Withdraw:", doc.id, doc.data());
+                    });
+                }
+                
+            } catch (error) {
+                console.error("Debug Error:", error);
+            }
+        };
+
+        console.log("Withdraw page script loaded");
+        
+    </script>
+</body>
+</html>
