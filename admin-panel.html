@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Admin - TaskShare</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Styling Khusus Admin Panel */
+        body {
+            background-color: #F8F8F8; 
+            max-width: 1000px;
+            padding-bottom: 20px;
+        }
+        .admin-header {
+            background-color: #EF4444; 
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .tab-nav {
+            display: flex;
+            border-bottom: 2px solid #E5E7EB;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+        .tab-button {
+            padding: 10px 15px;
+            cursor: pointer;
+            background-color: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            font-weight: 600;
+            color: #64748B;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        .tab-button.active {
+            color: #EF4444;
+            border-bottom: 3px solid #EF4444;
+        }
+        .tab-content {
+            display: none;
+            padding: 15px 0;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .action-button {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            cursor: pointer;
+            margin-left: 5px;
+            border: none;
+        }
+        .btn-approve { background-color: #10B981; color: white; }
+        .btn-reject { background-color: #EF4444; color: white; }
+        .btn-blue { background-color: #3B82F6; color: white; }
+        .btn-purple { background-color: #8B5CF6; color: white; }
+        .btn-yellow { background-color: #F59E0B; color: white; }
+        
+        /* Card Styles */
+        .user-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #10B981;
+        }
+        .task-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #E2E8F0;
+        }
+        .withdraw-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #3B82F6;
+        }
+        
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .info-item {
+            padding: 10px;
+            background: #F8FAFC;
+            border-radius: 8px;
+        }
+        .info-label {
+            font-size: 0.8em;
+            color: #64748B;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-weight: 600;
+            font-size: 1em;
+        }
+        
+        /* Search Bar */
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .search-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+        .search-button {
+            padding: 12px 20px;
+            background-color: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        /* Caption Box */
+        .caption-box {
+            background: #F0F9FF;
+            border: 2px dashed #3B82F6;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            position: relative;
+        }
+        .caption-box textarea {
+            width: 100%;
+            min-height: 120px;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        .copy-caption-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 8px 15px;
+            background: #3B82F6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        /* Status Messages */
+        .status-message {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .status-success {
+            background: #D1FAE5;
+            color: #065F46;
+            border: 1px solid #A7F3D0;
+        }
+        .status-error {
+            background: #FEE2E2;
+            color: #991B1B;
+            border: 1px solid #FECACA;
+        }
+        .status-info {
+            background: #DBEAFE;
+            color: #1E40AF;
+            border: 1px solid #BFDBFE;
+        }
+        
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 20px;
+        }
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid #E2E8F0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .page-btn.active {
+            background-color: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="container">
+        <div class="admin-header">
+            <div>
+                <h1><i class="fas fa-cog"></i> Admin Panel TaskShare</h1>
+                <p id="admin-welcome">Memuat data...</p>
+            </div>
+            <button id="admin-logout" class="btn-primary" style="background-color: white; color: #EF4444; width: auto; padding: 10px 15px;">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+
+        <nav class="tab-nav">
+            <button class="tab-button active" data-tab="dashboard-tab"><i class="fas fa-tachometer-alt"></i> Dashboard</button>
+            <button class="tab-button" data-tab="tasks-tab"><i class="fas fa-list-check"></i> Verifikasi Tugas (<span id="pending-tasks-count">0</span>)</button>
+            <button class="tab-button" data-tab="withdraws-tab"><i class="fas fa-dollar-sign"></i> Proses Withdraw (<span id="pending-withdraws-count">0</span>)</button>
+            <button class="tab-button" data-tab="users-tab"><i class="fas fa-users"></i> Manajemen User (<span id="total-users-count">0</span>)</button>
+            <button class="tab-button" data-tab="master-tasks-tab"><i class="fas fa-edit"></i> Kelola Tugas (<span id="total-tasks-count">0</span>)</button>
+        </nav>
+
+        <!-- DASHBOARD TAB -->
+        <div id="dashboard-tab" class="tab-content active">
+            <div class="card">
+                <h3>Statistik Singkat</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <p class="info-label">Total User</p>
+                        <p class="info-value" id="total-users">0</p>
+                    </div>
+                    <div class="info-item">
+                        <p class="info-label">Total Saldo User</p>
+                        <p class="info-value" id="total-balance">Rp 0</p>
+                    </div>
+                    <div class="info-item">
+                        <p class="info-label">Total Tugas</p>
+                        <p class="info-value" id="total-tasks">0</p>
+                    </div>
+                    <div class="info-item">
+                        <p class="info-label">Total Withdraw Pending</p>
+                        <p class="info-value" id="total-withdraws-pending">0</p>
+                    </div>
+                    <div class="info-item">
+                        <p class="info-label">Tugas Pending</p>
+                        <p class="info-value" id="total-tasks-pending">0</p>
+                    </div>
+                    <div class="info-item">
+                        <p class="info-label">Saldo Admin</p>
+                        <p class="info-value">Rp 0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top: 20px;">
+                <h3>Berikan Saldo Manual</h3>
+                <form id="manual-balance-form">
+                    <div style="margin-bottom: 15px;">
+                        <label for="target-email">Email User Target:</label>
+                        <input type="email" id="target-email" placeholder="user@example.com" required class="search-input">
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label for="manual-amount">Jumlah Saldo (+/-):</label>
+                        <input type="number" id="manual-amount" placeholder="1000" required class="search-input">
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label for="manual-desc">Deskripsi/Alasan:</label>
+                        <textarea id="manual-desc" placeholder="Bonus referral / Penyesuaian saldo" required 
+                                  style="width: 100%; padding: 12px; border: 1px solid #E2E8F0; border-radius: 8px; min-height: 80px;"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">Kirim Saldo</button>
+                    <div id="manual-balance-status" style="margin-top: 10px;"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- VERIFIKASI TUGAS TAB -->
+        <div id="tasks-tab" class="tab-content">
+            <h3>Tugas Menunggu Verifikasi</h3>
+            <div class="search-container">
+                <input type="text" id="task-search" placeholder="Cari berdasarkan username atau judul" class="search-input">
+                <select id="task-sort" class="search-input" style="width: auto;">
+                    <option value="newest">Terbaru</option>
+                    <option value="oldest">Terlama</option>
+                </select>
+                <button id="refresh-tasks" class="search-button">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            <div id="pending-tasks-list">
+                <p>Memuat tugas...</p>
+            </div>
+        </div>
+
+        <!-- PROSES WITHDRAW TAB -->
+        <div id="withdraws-tab" class="tab-content">
+            <h3>Permintaan Withdraw Pending</h3>
+            <div class="search-container">
+                <input type="text" id="withdraw-search" placeholder="Cari berdasarkan username atau metode" class="search-input">
+                <select id="withdraw-sort" class="search-input" style="width: auto;">
+                    <option value="newest">Terbaru</option>
+                    <option value="oldest">Terlama</option>
+                    <option value="amount-high">Jumlah Tertinggi</option>
+                    <option value="amount-low">Jumlah Terendah</option>
+                </select>
+            </div>
+            <div id="pending-withdraws-list">
+                <p>Memuat permintaan withdraw...</p>
+            </div>
+        </div>
+
+        <!-- MANAJEMEN USER TAB -->
+        <div id="users-tab" class="tab-content">
+            <h3>Daftar Pengguna Lengkap</h3>
+            
+            <div class="search-container">
+                <input type="text" id="user-search" placeholder="Cari berdasarkan username, email, atau referral" class="search-input">
+                <select id="user-sort" class="search-input" style="width: auto;">
+                    <option value="newest">Terbaru</option>
+                    <option value="oldest">Terlama</option>
+                    <option value="balance-high">Saldo Tertinggi</option>
+                    <option value="balance-low">Saldo Terendah</option>
+                    <option value="username">Username A-Z</option>
+                </select>
+                <button id="refresh-users" class="search-button">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            
+            <div style="text-align: right; margin-bottom: 10px;">
+                <span id="user-pagination-info" style="color: #64748B;">Menampilkan 0 dari 0 user</span>
+            </div>
+            
+            <div id="users-list" style="max-height: 600px; overflow-y: auto; padding-right: 10px;">
+                <p>Memuat daftar pengguna...</p>
+            </div>
+            
+            <div class="pagination" id="user-pagination"></div>
+        </div>
+
+        <!-- =================================================== -->
+        <!-- KELOLA TUGAS TAB - WORKING VERSION -->
+        <!-- =================================================== -->
+        <div id="master-tasks-tab" class="tab-content">
+            <h3><i class="fas fa-plus-circle"></i> Buat Tugas Baru</h3>
+            
+            <form id="create-task-form" class="card" style="margin-bottom: 30px;">
+                <!-- JUDUL TUGAS -->
+                <div style="margin-bottom: 15px;">
+                    <label for="task-title" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                        <i class="fas fa-heading"></i> Judul Tugas
+                    </label>
+                    <input type="text" 
+                           id="task-title" 
+                           placeholder="Contoh: Share ke 5 Grup WA" 
+                           required
+                           style="width: 100%; padding: 12px; border: 2px solid #E2E8F0; border-radius: 8px;">
+                </div>
+                
+                <!-- DESKRIPSI -->
+                <div style="margin-bottom: 15px;">
+                    <label for="task-description" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                        <i class="fas fa-align-left"></i> Deskripsi Tugas
+                    </label>
+                    <textarea id="task-description" 
+                              placeholder="Jelaskan secara detail tugas yang harus dilakukan user..." 
+                              required
+                              style="width: 100%; padding: 12px; border: 2px solid #E2E8F0; border-radius: 8px; min-height: 100px;"></textarea>
+                </div>
+                
+                <!-- REWARD -->
+                <div style="margin-bottom: 15px;">
+                    <label for="task-reward" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                        <i class="fas fa-money-bill-wave"></i> Reward (IDR)
+                    </label>
+                    <input type="number" 
+                           id="task-reward" 
+                           placeholder="1000" 
+                           required 
+                           min="100"
+                           style="width: 100%; padding: 12px; border: 2px solid #E2E8F0; border-radius: 8px;">
+                </div>
+                
+                <!-- LINK GAMBAR -->
+                <div style="margin-bottom: 15px;">
+                    <label for="task-image" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                        <i class="fas fa-image"></i> Link Gambar (untuk diambil user)
+                    </label>
+                    <input type="url" 
+                           id="task-image" 
+                           placeholder="https://example.com/gambar-tugas.jpg" 
+                           required
+                           style="width: 100%; padding: 12px; border: 2px solid #E2E8F0; border-radius: 8px;">
+                    
+                    <div style="background: #F0F9FF; padding: 10px; border-radius: 8px; margin-top: 10px; border-left: 4px solid #3B82F6;">
+                        <p style="margin: 0; font-size: 0.9em; color: #1E40AF;">
+                            <i class="fas fa-info-circle"></i> User akan klik tombol "Ambil Gambar Disini" yang mengarah ke link ini
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- CAPTION UNTUK DISALIN -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">
+                        <i class="fas fa-quote-right"></i> Caption yang Harus Disalin User
+                    </label>
+                    
+                    <div class="caption-box">
+                        <textarea id="task-caption" 
+                                  placeholder="Masukkan caption yang harus disalin user untuk diposting..." 
+                                  required></textarea>
+                        
+                        <button type="button" 
+                                class="copy-caption-btn" 
+                                onclick="copyTaskCaption()">
+                            <i class="fas fa-copy"></i> Salin Caption
+                        </button>
+                        
+                        <div style="text-align: right; margin-top: 10px;">
+                            <span id="caption-counter" style="font-size: 0.8em; color: #64748B;">0/500 karakter</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- BUTTON SUBMIT -->
+                <button type="submit" class="btn-primary" style="padding: 14px 20px; font-size: 1.1rem; width: 100%;">
+                    <i class="fas fa-save"></i> Simpan Tugas Baru
+                </button>
+                
+                <div id="create-task-status" style="margin-top: 15px;"></div>
+            </form>
+
+            <!-- DAFTAR TUGAS AKTIF -->
+            <h3 style="margin-top: 30px;">
+                <i class="fas fa-list-check"></i> Daftar Tugas Aktif
+                <span style="font-size: 0.8em; color: #64748B; margin-left: 10px;" id="active-tasks-count">(0 tugas)</span>
+            </h3>
+            
+            <div class="search-container">
+                <input type="text" id="master-task-search" placeholder="Cari berdasarkan judul tugas" class="search-input">
+                <button id="refresh-master-tasks" class="search-button">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            
+            <div id="active-tasks-list">
+                <p>Memuat tugas aktif...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <script>
+        // FIREBASE CONFIG - SIMPLE VERSION
+        const firebaseConfig = {
+            apiKey: "AIzaSyAXBhH6C0gzuh_ErtSwgch40Xzkum7H2pA",
+            authDomain: "taskshare-production.firebaseapp.com",
+            projectId: "taskshare-production",
+            storageBucket: "taskshare-production.firebasestorage.app",
+            messagingSenderId: "552032745720",
+            appId: "1:552032745720:web:1444005dfc80ad02c0230d",
+            measurementId: "G-Y72K3DLK64"
+        };
+        
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        
+        console.log("✅ Firebase initialized");
+    </script>
+    
+    <script>
+        // ===================================================
+        // ADMIN PANEL - SIMPLE WORKING VERSION
+        // ===================================================
+        
+        const ADMIN_SESSION_KEY = "taskshare_admin_logged_in";
+        
+        // Check admin session
+        function checkAdminAuth() {
+            if (sessionStorage.getItem(ADMIN_SESSION_KEY) !== 'true') {
+                window.location.href = 'admin.html';
+                return false;
+            }
+            return true;
+        }
+        
+        if (!checkAdminAuth()) {
+            // Redirect already happening
+        }
+        
+        // Set welcome message
+        document.getElementById('admin-welcome').textContent = 
+            `Selamat datang, Admin! ${new Date().toLocaleDateString('id-ID')}`;
+        
+        // Logout button
+        document.getElementById('admin-logout').addEventListener('click', () => {
+            sessionStorage.removeItem(ADMIN_SESSION_KEY);
+            window.location.href = 'admin.html';
+        });
+        
+        // ===================================================
+        // TAB SWITCHING
+        // ===================================================
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                // Add active to clicked button
+                button.classList.add('active');
+                const tabId = button.dataset.tab;
+                document.getElementById(tabId).classList.add('active');
+                
+                // Load data for active tab
+                switch(tabId) {
+                    case 'dashboard-tab':
+                        loadDashboardStats();
+                        break;
+                    case 'tasks-tab':
+                        loadPendingTasks();
+                        break;
+                    case 'withdraws-tab':
+                        loadPendingWithdraws();
+                        break;
+                    case 'users-tab':
+                        loadAllUsers();
+                        break;
+                    case 'master-tasks-tab':
+                        loadMasterTasks();
+                        break;
+                }
+            });
+        });
+        
+        // ===================================================
+        // HELPER FUNCTIONS
+        // ===================================================
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(amount || 0);
+        }
+        
+        function formatDate(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            return date.toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `
+                <div class="status-message status-${type}">
+                    ${message}
+                </div>
+            `;
+        }
+        
+        // ===================================================
+        // 1. CREATE TASK SYSTEM - WORKING
+        // ===================================================
+        
+        // Initialize caption counter
+        const taskCaption = document.getElementById('task-caption');
+        const captionCounter = document.getElementById('caption-counter');
+        
+        taskCaption.addEventListener('input', function() {
+            const length = this.value.length;
+            captionCounter.textContent = `${length}/500 karakter`;
+        });
+        
+        // Copy caption function
+        window.copyTaskCaption = function() {
+            const captionText = taskCaption.value;
+            if (captionText.trim()) {
+                navigator.clipboard.writeText(captionText).then(() => {
+                    alert('✅ Caption berhasil disalin!');
+                }).catch(err => {
+                    console.error('Gagal menyalin:', err);
+                    alert('❌ Gagal menyalin caption');
+                });
+            } else {
+                alert('⚠️ Caption masih kosong!');
+            }
+        };
+        
+        // Handle create task form
+        document.getElementById('create-task-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('task-title').value.trim();
+            const description = document.getElementById('task-description').value.trim();
+            const reward = parseInt(document.getElementById('task-reward').value);
+            const imageLink = document.getElementById('task-image').value.trim();
+            const caption = taskCaption.value.trim();
+            
+            // Validation
+            if (!title || !description || !caption) {
+                showStatus('create-task-status', '❌ Semua field wajib diisi!', 'error');
+                return;
+            }
+            
+            if (reward < 100) {
+                showStatus('create-task-status', '❌ Reward minimal Rp 100', 'error');
+                return;
+            }
+            
+            if (caption.length > 500) {
+                showStatus('create-task-status', '❌ Caption maksimal 500 karakter', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('create-task-status', '<i class="fas fa-spinner fa-spin"></i> Menyimpan tugas...', 'info');
+                
+                // Save to Firestore
+                await db.collection("tasks").add({
+                    title: title,
+                    description: description,
+                    reward: reward,
+                    image: imageLink,
+                    caption: caption,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    active: true
+                });
+                
+                // Success
+                showStatus('create-task-status', '✅ Tugas berhasil ditambahkan!', 'success');
+                
+                // Reset form
+                document.getElementById('create-task-form').reset();
+                captionCounter.textContent = '0/500 karakter';
+                
+                // Refresh tasks list
+                setTimeout(() => {
+                    loadMasterTasks();
+                    loadDashboardStats();
+                }, 1500);
+                
+            } catch (error) {
+                console.error("Create task error:", error);
+                showStatus('create-task-status', `❌ Gagal menyimpan: ${error.message}`, 'error');
+            }
+        });
+        
+        // ===================================================
+        // 2. LOAD MASTER TASKS
+        // ===================================================
+        async function loadMasterTasks() {
+            try {
+                const snapshot = await db.collection('tasks')
+                    .orderBy('createdAt', 'desc')
+                    .get();
+                
+                const activeTasksList = document.getElementById('active-tasks-list');
+                const activeTasksCount = document.getElementById('active-tasks-count');
+                
+                activeTasksList.innerHTML = '';
+                activeTasksCount.textContent = `(${snapshot.size} tugas)`;
+                
+                if (snapshot.empty) {
+                    activeTasksList.innerHTML = '<p class="status-message status-info">Belum ada tugas. Buat tugas pertama!</p>';
+                    return;
+                }
+                
+                snapshot.forEach(doc => {
+                    const task = doc.data();
+                    const taskId = doc.id;
+                    
+                    const taskCard = `
+                        <div class="task-card">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div style="flex: 1;">
+                                    <h4 style="margin: 0 0 10px 0;">${task.title}</h4>
+                                    <p style="color: #64748B; margin: 0 0 10px 0;">${task.description}</p>
+                                    <div style="display: flex; gap: 15px; font-size: 0.9em;">
+                                        <span style="color: var(--color-accent); font-weight: 600;">
+                                            Reward: Rp ${task.reward.toLocaleString('id-ID')}
+                                        </span>
+                                        <span style="color: #64748B;">
+                                            Dibuat: ${formatDate(task.createdAt)}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button class="action-button btn-reject" onclick="deleteTask('${taskId}', '${task.title.replace(/'/g, "\\'")}')">
+                                        <i class="fas fa-trash"></i> Hapus
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 15px;">
+                                <p style="font-weight: 600; margin-bottom: 5px;">Link Gambar:</p>
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="text" value="${task.image || 'Tidak ada link'}" readonly 
+                                           style="flex: 1; padding: 8px; border: 1px solid #E2E8F0; border-radius: 6px; background: #F8FAFC;">
+                                    <button onclick="copyToClipboard('${task.image || ''}')" class="action-button btn-blue">
+                                        <i class="fas fa-copy"></i> Salin
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 15px;">
+                                <p style="font-weight: 600; margin-bottom: 5px;">Caption:</p>
+                                <div style="background: #F8FAFC; padding: 15px; border-radius: 6px; border: 1px solid #E2E8F0; position: relative;">
+                                    <p style="margin: 0; font-size: 0.9em; white-space: pre-wrap; max-height: 200px; overflow-y: auto;">${task.caption || 'Tidak ada caption'}</p>
+                                    <button onclick="copyToClipboard('${task.caption.replace(/'/g, "\\'").replace(/\n/g, '\\n')}')" 
+                                            style="position: absolute; top: 10px; right: 10px; padding: 5px 10px; background: #3B82F6; color: white; border: none; border-radius: 4px; font-size: 0.8em;">
+                                        <i class="fas fa-copy"></i> Salin
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    activeTasksList.innerHTML += taskCard;
+                });
+                
+            } catch (error) {
+                console.error("Error loading tasks:", error);
+                activeTasksList.innerHTML = 
+                    '<p class="status-message status-error">Gagal memuat daftar tugas.</p>';
+            }
+        }
+        
+        // Copy to clipboard helper
+        window.copyToClipboard = function(text) {
+            const decodedText = text.replace(/\\n/g, '\n').replace(/\\'/g, "'");
+            navigator.clipboard.writeText(decodedText).then(() => {
+                alert('✅ Berhasil disalin!');
+            }).catch(err => {
+                console.error('Gagal menyalin:', err);
+                alert('❌ Gagal menyalin');
+            });
+        };
+        
+        // Delete task function
+        window.deleteTask = async function(taskId, title) {
+            if (!confirm(`Yakin menghapus tugas "${title}"?`)) {
+                return;
+            }
+            
+            try {
+                await db.collection('tasks').doc(taskId).delete();
+                alert(`✅ Tugas "${title}" berhasil dihapus.`);
+                loadMasterTasks();
+                loadDashboardStats();
+            } catch (error) {
+                alert(`❌ Gagal menghapus: ${error.message}`);
+            }
+        };
+        
+        // ===================================================
+        // 3. DASHBOARD STATS
+        // ===================================================
+        async function loadDashboardStats() {
+            try {
+                const [usersSnapshot, tasksSnapshot, withdrawsSnapshot, pendingTasksSnapshot] = await Promise.all([
+                    db.collection('users').get(),
+                    db.collection('tasks').get(),
+                    db.collection('withdraws').where('status', '==', 'pending').get(),
+                    db.collection('user_tasks').where('status', '==', 'pending').get()
+                ]);
+                
+                // Calculate total balance
+                let totalBalance = 0;
+                usersSnapshot.forEach(doc => {
+                    totalBalance += doc.data().balance || 0;
+                });
+                
+                // Update UI
+                document.getElementById('total-users').textContent = usersSnapshot.size;
+                document.getElementById('total-users-count').textContent = usersSnapshot.size;
+                document.getElementById('total-balance').textContent = formatCurrency(totalBalance);
+                document.getElementById('total-tasks').textContent = tasksSnapshot.size;
+                document.getElementById('total-tasks-count').textContent = tasksSnapshot.size;
+                document.getElementById('total-tasks-pending').textContent = pendingTasksSnapshot.size;
+                document.getElementById('total-withdraws-pending').textContent = withdrawsSnapshot.size;
+                document.getElementById('pending-tasks-count').textContent = pendingTasksSnapshot.size;
+                document.getElementById('pending-withdraws-count').textContent = withdrawsSnapshot.size;
+                
+            } catch (error) {
+                console.error("Error loading dashboard stats:", error);
+            }
+        }
+        
+        // ===================================================
+        // 4. MANUAL BALANCE FORM
+        // ===================================================
+        document.getElementById('manual-balance-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('target-email').value.trim();
+            const amount = parseInt(document.getElementById('manual-amount').value);
+            const desc = document.getElementById('manual-desc').value.trim();
+            
+            if (!email || !amount || !desc) {
+                showStatus('manual-balance-status', '❌ Semua field wajib diisi!', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('manual-balance-status', '<i class="fas fa-spinner fa-spin"></i> Memproses...', 'info');
+                
+                // Find user by email
+                const userSnapshot = await db.collection('users')
+                    .where('email', '==', email)
+                    .limit(1)
+                    .get();
+                
+                if (userSnapshot.empty) {
+                    showStatus('manual-balance-status', '❌ User dengan email tersebut tidak ditemukan', 'error');
+                    return;
+                }
+                
+                const userDoc = userSnapshot.docs[0];
+                const uid = userDoc.id;
+                const userData = userDoc.data();
+                
+                // Update balance
+                await db.collection('users').doc(uid).update({
+                    balance: firebase.firestore.FieldValue.increment(amount)
+                });
+                
+                // Add to history
+                await db.collection('history').add({
+                    uid: uid,
+                    type: 'admin_bonus',
+                    amount: amount,
+                    description: desc,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showStatus('manual-balance-status', 
+                    `✅ Berhasil memberikan ${formatCurrency(amount)} ke ${userData.username} (${email})`, 
+                    'success');
+                
+                // Reset form
+                document.getElementById('manual-balance-form').reset();
+                
+                // Refresh dashboard
+                setTimeout(() => {
+                    loadDashboardStats();
+                }, 1500);
+                
+            } catch (error) {
+                console.error("Manual balance error:", error);
+                showStatus('manual-balance-status', `❌ Gagal: ${error.message}`, 'error');
+            }
+        });
+        
+        // ===================================================
+        // 5. INITIAL LOAD
+        // ===================================================
+        async function initializeAdminPanel() {
+            try {
+                console.log("Initializing admin panel...");
+                
+                // Load dashboard stats first
+                await loadDashboardStats();
+                
+                // Set up task search
+                const masterTaskSearch = document.getElementById('master-task-search');
+                if (masterTaskSearch) {
+                    masterTaskSearch.addEventListener('input', function() {
+                        const searchTerm = this.value.toLowerCase();
+                        const taskCards = document.querySelectorAll('#active-tasks-list .task-card');
+                        
+                        taskCards.forEach(card => {
+                            const title = card.querySelector('h4').textContent.toLowerCase();
+                            const isVisible = title.includes(searchTerm);
+                            card.style.display = isVisible ? 'block' : 'none';
+                        });
+                    });
+                }
+                
+                // Refresh button
+                const refreshBtn = document.getElementById('refresh-master-tasks');
+                if (refreshBtn) {
+                    refreshBtn.addEventListener('click', loadMasterTasks);
+                }
+                
+                console.log("✅ Admin panel initialized successfully");
+                
+            } catch (error) {
+                console.error("Initialization error:", error);
+            }
+        }
+        
+        // Start everything
+        initializeAdminPanel();
+        
+    </script>
+</body>
+</html>
