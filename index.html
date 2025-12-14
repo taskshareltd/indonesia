@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskShare - Login & Daftar</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    
+    <div class="container">
+        <!-- HEADER -->
+        <header style="text-align: center; margin-top: 40px; margin-bottom: 30px;">
+            <h1 style="color: var(--color-primary);">TaskShare</h1>
+            <p style="color: #64748B;">Selesaikan tugas, dapatkan saldo!</p>
+        </header>
+
+        <!-- REFERRAL INFO -->
+        <div id="referral-info" style="display: none; background-color: #FEF3C7; color: #92400E; padding: 12px; margin-bottom: 20px; border-radius: 8px; text-align: center; font-size: 0.9em;">
+            <i class="fas fa-gift"></i> <span id="referral-text"></span>
+        </div>
+
+        <!-- DEVICE WARNING -->
+        <div id="device-warning" style="display: none; background-color: #FEE2E2; color: #DC2626; padding: 15px; margin-bottom: 20px; border-radius: 8px; border-left: 4px solid #DC2626;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div>
+                    <strong>❌ DEVICE SUDAH TERPAKAI!</strong>
+                    <p id="device-warning-text" style="margin: 5px 0 0 0; font-size: 0.9em;"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOGGLE BUTTONS -->
+        <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
+            <button id="show-login" class="btn-primary" style="flex: 1;">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+            <button id="show-register" class="btn-primary" style="flex: 1; background-color: var(--color-secondary);">
+                <i class="fas fa-user-plus"></i> Daftar
+            </button>
+        </div>
+
+        <!-- LOGIN FORM -->
+        <div id="login-section" class="card">
+            <h2><i class="fas fa-sign-in-alt"></i> Login Akun</h2>
+            <form id="login-form">
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Kata Sandi" required>
+                <button type="submit" class="btn-primary" id="login-button">
+                    <i class="fas fa-sign-in-alt"></i> Masuk
+                </button>
+                <p id="login-status" style="margin-top: 10px; text-align: center; color: red;"></p>
+            </form>
+        </div>
+
+        <!-- REGISTER FORM -->
+        <div id="register-section" class="card" style="display: none;">
+            <h2><i class="fas fa-user-plus"></i> Daftar Akun Baru</h2>
+            
+            <div id="register-device-check" style="background-color: #FEF3C7; padding: 10px; margin-bottom: 15px; border-radius: 6px; font-size: 0.9em; display: none;">
+                <i class="fas fa-info-circle"></i> <span id="register-device-message">Memeriksa device...</span>
+            </div>
+            
+            <form id="register-form">
+                <input type="text" id="register-username" placeholder="Nama Pengguna" required>
+                <input type="email" id="register-email" placeholder="Email" required>
+                <input type="password" id="register-password" placeholder="Kata Sandi (min 6 karakter)" required>
+                <input type="text" id="register-referral" placeholder="Kode Referral (Opsional)">
+                <button type="submit" class="btn-primary" id="register-button">
+                    <i class="fas fa-user-plus"></i> Daftar Akun
+                </button>
+                <p id="register-status" style="margin-top: 10px; text-align: center; color: red;"></p>
+            </form>
+        </div>
+
+        <!-- ADMIN LINK -->
+        <div style="text-align: center; margin-top: 25px; padding-top: 15px; border-top: 1px solid #E2E8F0;">
+            <a href="admin.html" style="color: #EF4444; text-decoration: none; font-size: 0.9em;">
+                <i class="fas fa-cog"></i> Akses Admin Panel
+            </a>
+        </div>
+
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <script src="firebase-config.js"></script>
+    
+    <script>
+        // ============================================
+        // 1. ELEMENTS
+        // ============================================
+        const loginSection = document.getElementById('login-section');
+        const registerSection = document.getElementById('register-section');
+        const showLoginBtn = document.getElementById('show-login');
+        const showRegisterBtn = document.getElementById('show-register');
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const referralInfo = document.getElementById('referral-info');
+        const referralText = document.getElementById('referral-text');
+        const deviceWarning = document.getElementById('device-warning');
+        const deviceWarningText = document.getElementById('device-warning-text');
+        const registerDeviceCheck = document.getElementById('register-device-check');
+        const registerDeviceMessage = document.getElementById('register-device-message');
+        
+        let currentMode = 'login'; // 'login' or 'register'
+        
+        // ============================================
+        // 2. TOGGLE LOGIN/REGISTER
+        // ============================================
+        showLoginBtn.addEventListener('click', function() {
+            currentMode = 'login';
+            loginSection.style.display = 'block';
+            registerSection.style.display = 'none';
+            showLoginBtn.style.backgroundColor = 'var(--color-primary)';
+            showRegisterBtn.style.backgroundColor = 'var(--color-secondary)';
+            deviceWarning.style.display = 'none';
+        });
+        
+        showRegisterBtn.addEventListener('click', async function() {
+            currentMode = 'register';
+            loginSection.style.display = 'none';
+            registerSection.style.display = 'block';
+            showLoginBtn.style.backgroundColor = 'var(--color-secondary)';
+            showRegisterBtn.style.backgroundColor = 'var(--color-primary)';
+            
+            // CEK DEVICE SAAT BUKA REGISTER
+            await checkDeviceForRegistration();
+        });
+        
+        // ============================================
+        // 3. CHECK REFERRAL CODE
+        // ============================================
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            const results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+        
+        const referrerCode = getUrlParameter('ref');
+        if (referrerCode) {
+            referralInfo.style.display = 'block';
+            referralText.textContent = `Anda membuka link undangan. Kode: ${referrerCode}`;
+            document.getElementById('register-referral').value = referrerCode;
+            
+            // Auto show register form jika ada referral
+            showRegisterBtn.click();
+        }
+        
+        // ============================================
+        // 4. DEVICE CHECK FOR REGISTRATION
+        // ============================================
+        async function checkDeviceForRegistration() {
+            try {
+                registerDeviceCheck.style.display = 'block';
+                registerDeviceMessage.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memeriksa device...';
+                
+                const currentDeviceId = generateSimpleDeviceId();
+                console.log("Device check for registration:", currentDeviceId);
+                
+                // CEK SEMUA USER
+                const allUsers = await db.collection("users").get();
+                let deviceAlreadyUsed = false;
+                let existingUsername = '';
+                
+                allUsers.forEach(doc => {
+                    const userData = doc.data();
+                    if (userData.deviceId === currentDeviceId) {
+                        deviceAlreadyUsed = true;
+                        existingUsername = userData.username || userData.email;
+                    }
+                });
+                
+                if (deviceAlreadyUsed) {
+                    // DEVICE SUDAH TERPAKAI
+                    deviceWarning.style.display = 'block';
+                    deviceWarningText.textContent = 
+                        `Device ini sudah digunakan untuk akun: ${existingUsername}. 1 Device = 1 Akun!`;
+                    
+                    registerDeviceMessage.innerHTML = 
+                        '<i class="fas fa-times-circle" style="color: #DC2626;"></i> ❌ Device sudah terpakai!';
+                    
+                    // DISABLE REGISTER FORM
+                    document.getElementById('register-username').disabled = true;
+                    document.getElementById('register-email').disabled = true;
+                    document.getElementById('register-password').disabled = true;
+                    document.getElementById('register-button').disabled = true;
+                    document.getElementById('register-button').innerHTML = '<i class="fas fa-ban"></i> Tidak Bisa Daftar';
+                    
+                } else {
+                    // DEVICE BERSIH
+                    registerDeviceMessage.innerHTML = 
+                        '<i class="fas fa-check-circle" style="color: #10B981;"></i> ✓ Device bersih, boleh daftar';
+                    
+                    // ENABLE REGISTER FORM
+                    document.getElementById('register-username').disabled = false;
+                    document.getElementById('register-email').disabled = false;
+                    document.getElementById('register-password').disabled = false;
+                    document.getElementById('register-button').disabled = false;
+                    document.getElementById('register-button').innerHTML = '<i class="fas fa-user-plus"></i> Daftar Akun';
+                    
+                    deviceWarning.style.display = 'none';
+                }
+                
+            } catch (error) {
+                console.error("Device check error:", error);
+                registerDeviceMessage.innerHTML = 
+                    '<i class="fas fa-exclamation-triangle" style="color: #F59E0B;"></i> Gagal cek device. Silakan coba daftar.';
+                
+                // Tetap izinkan daftar jika error
+                document.getElementById('register-button').disabled = false;
+            }
+        }
+        
+        // ============================================
+        // 5. HANDLE LOGIN
+        // ============================================
+        loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const loginStatus = document.getElementById('login-status');
+            const loginButton = document.getElementById('login-button');
+            
+            loginStatus.textContent = '';
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+            
+            try {
+                const deviceId = generateSimpleDeviceId();
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const uid = userCredential.user.uid;
+                
+                const userDoc = await db.collection("users").doc(uid).get();
+                
+                if (!userDoc.exists) {
+                    throw new Error("Data user tidak ditemukan");
+                }
+                
+                const userData = userDoc.data();
+                
+                // DEVICE CHECK
+                if (userData.deviceId && userData.deviceId !== deviceId) {
+                    const confirmed = confirm(
+                        `🔐 LOGIN DARI DEVICE BARU\n\n` +
+                        `Device terdaftar: ${userData.deviceId.substring(0, 8)}...\n` +
+                        `Device saat ini: ${deviceId.substring(0, 8)}...\n\n` +
+                        `Apakah ini Anda? Ya = Lanjut, Tidak = Batalkan`
+                    );
+                    
+                    if (!confirmed) {
+                        await auth.signOut();
+                        throw new Error("Login dibatalkan. Device tidak diizinkan.");
+                    }
+                    
+                    // Update device
+                    await db.collection("users").doc(uid).update({
+                        deviceId: deviceId,
+                        lastDeviceChange: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    await logDeviceActivity(uid, 'device_changed_login', deviceId);
+                }
+                
+                // Update last login
+                await db.collection("users").doc(uid).update({
+                    lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // Save to localStorage
+                localStorage.setItem(`taskshare_device_${uid}`, deviceId);
+                
+                // Redirect
+                window.location.href = 'dashboard.html';
+                
+            } catch (error) {
+                console.error("Login Error:", error);
+                loginStatus.textContent = `❌ ${error.message}`;
+                loginButton.disabled = false;
+                loginButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Masuk';
+            }
+        });
+        
+        // ============================================
+        // 6. HANDLE REGISTER
+        // ============================================
+        registerForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('register-username').value.trim();
+            const email = document.getElementById('register-email').value.trim();
+            const password = document.getElementById('register-password').value;
+            const referralCode = document.getElementById('register-referral').value.trim();
+            const registerStatus = document.getElementById('register-status');
+            const registerButton = document.getElementById('register-button');
+            
+            registerStatus.textContent = '';
+            registerButton.disabled = true;
+            registerButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memeriksa...';
+            
+            try {
+                // DOUBLE CHECK DEVICE
+                const deviceId = generateSimpleDeviceId();
+                const allUsers = await db.collection("users").get();
+                let deviceUsed = false;
+                
+                allUsers.forEach(doc => {
+                    if (doc.data().deviceId === deviceId) {
+                        deviceUsed = true;
+                    }
+                });
+                
+                if (deviceUsed) {
+                    throw new Error("❌ Device ini sudah memiliki akun! 1 Device = 1 Akun.");
+                }
+                
+                // CHECK EMAIL
+                const methods = await auth.fetchSignInMethodsForEmail(email);
+                if (methods.length > 0) {
+                    throw new Error("❌ Email ini sudah terdaftar!");
+                }
+                
+                // CHECK USERNAME
+                const usernameCheck = await db.collection("users")
+                    .where("username", "==", username)
+                    .limit(1)
+                    .get();
+                
+                if (!usernameCheck.empty) {
+                    throw new Error("❌ Username sudah digunakan.");
+                }
+                
+                registerButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mendaftarkan...';
+                
+                // CREATE ACCOUNT
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const uid = userCredential.user.uid;
+                const userRefCode = uid.substring(0, 8).toUpperCase();
+                
+                // REFERRAL PROCESSING
+                let referrerUid = '';
+                if (referralCode) {
+                    const referrerSnapshot = await db.collection("users")
+                        .where("referral", "==", referralCode)
+                        .limit(1)
+                        .get();
+                    
+                    if (!referrerSnapshot.empty) {
+                        referrerUid = referrerSnapshot.docs[0].id;
+                        
+                        const REFERRAL_REWARD = 250;
+                        await db.collection("users").doc(referrerUid).update({
+                            balance: firebase.firestore.FieldValue.increment(REFERRAL_REWARD)
+                        });
+                        
+                        await db.collection("history").add({
+                            uid: referrerUid,
+                            type: "referral",
+                            amount: REFERRAL_REWARD,
+                            description: `Bonus referral dari ${username}`,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                }
+                
+                // SAVE USER WITH DEVICE LOCK
+                await db.collection("users").doc(uid).set({
+                    username: username,
+                    email: email,
+                    balance: 0,
+                    referral: userRefCode,
+                    referredBy: referrerUid,
+                    deviceId: deviceId,
+                    deviceRegistered: firebase.firestore.FieldValue.serverTimestamp(),
+                    deviceLocked: true,
+                    loginCount: 1,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                // SAVE & LOG
+                localStorage.setItem(`taskshare_device_${uid}`, deviceId);
+                await logDeviceActivity(uid, 'device_registered', deviceId);
+                
+                // SUCCESS
+                registerStatus.textContent = '✅ Pendaftaran berhasil! Mengalihkan...';
+                registerStatus.style.color = 'var(--color-primary)';
+                
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 1500);
+                
+            } catch (error) {
+                console.error("Register Error:", error);
+                registerStatus.textContent = error.message;
+                registerButton.disabled = false;
+                registerButton.innerHTML = '<i class="fas fa-user-plus"></i> Daftar Akun';
+            }
+        });
+        
+        // ============================================
+        // 7. INITIALIZE
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto focus
+            if (currentMode === 'login') {
+                document.getElementById('login-email').focus();
+      }
+      console.log("TaskShare Login/Register ready!");
+        });
+        
+    </script>
+</body>
+</html>

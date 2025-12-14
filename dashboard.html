@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - TaskShare</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    
+    <div class="container">
+        <header style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Halo, <span id="username-display">User!</span></h2>
+                <a href="#" id="logout-button" class="btn-secondary" style="width: auto; padding: 5px 10px; font-size: 0.9em;">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+            <p style="color: #64748B;">Selamat datang di TaskShare, tempat tugas menghasilkan saldo!</p>
+        </header>
+
+        <div class="card" style="background-color: var(--color-primary); color: white; padding: 15px; text-align: center;">
+            <p style="font-size: 0.9rem;">Saldo Anda Saat Ini</p>
+            <h1 id="balance-display" style="margin: 5px 0; font-size: 2rem;">Rp 0</h1>
+        </div>
+
+        <section class="card" style="margin-top: 20px; text-align: center;">
+            <h3><i class="fas fa-calendar-check"></i> Bonus Harian</h3>
+            <p>Klaim bonus Anda setiap hari untuk Rp 150!</p>
+            <p id="checkin-status" style="margin-top: 10px; font-weight: 600; color: orange;">Memuat status...</p>
+            <button id="checkin-button" class="btn-primary" style="margin-top: 15px;" disabled>
+                Klaim Bonus Harian (+Rp 150)
+            </button>
+        </section>
+
+        <section style="margin-top: 30px;">
+            <h3>Akses Cepat</h3>
+            <div style="display: flex; justify-content: space-around; gap: 10px; text-align: center;">
+                <a href="tasks.html" class="card shortcut-item">
+                    <i class="fas fa-clipboard-list" style="font-size: 1.5em; color: var(--color-primary);"></i>
+                    <p>Tugas</p>
+                </a>
+                <a href="withdraw.html" class="card shortcut-item">
+                    <i class="fas fa-money-bill-wave" style="font-size: 1.5em; color: var(--color-accent);"></i>
+                    <p>Tarik Saldo</p>
+                </a>
+                <a href="history.html" class="card shortcut-item">
+                    <i class="fas fa-history" style="font-size: 1.5em; color: #64748B;"></i>
+                    <p>Riwayat</p>
+                </a>
+            </div>
+        </section>
+
+        <section class="card" style="margin-top: 30px;">
+            <h3><i class="fas fa-users"></i> Program Undang Teman</h3>
+            <p>Dapatkan Rp 250 untuk setiap teman yang mendaftar!</p>
+            <p style="margin-top: 10px; font-weight: 600;">Kode Anda: <span id="referral-code">...</span></p>
+            <p style="margin-top: 5px; font-weight: 600;">Link Undangan:</p>
+            <input type="text" id="referral-link-input" readonly style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #E2E8F0; border-radius: 4px;">
+            <button id="copy-referral-link" class="btn-primary" style="width: auto; padding: 8px 15px; margin-top: 5px;">
+                <i class="fas fa-link"></i> Salin Link
+            </button>
+        </section>
+        
+    </div>
+
+    <nav class="bottom-nav">
+        <a href="dashboard.html" class="nav-item active">
+            <i class="fas fa-home"></i><p>Home</p>
+        </a>
+        <a href="tasks.html" class="nav-item">
+            <i class="fas fa-clipboard-list"></i><p>Tugas</p>
+        </a>
+        <a href="withdraw.html" class="nav-item">
+            <i class="fas fa-money-bill-wave"></i><p>Tarik</p>
+        </a>
+        <a href="history.html" class="nav-item">
+            <i class="fas fa-history"></i><p>Riwayat</p>
+        </a>
+    </nav>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+    <script src="firebase-config.js"></script>
+    
+    <script>
+        // Elements
+        const usernameDisplay = document.getElementById('username-display');
+        const balanceDisplay = document.getElementById('balance-display');
+        const referralCode = document.getElementById('referral-code');
+        const referralLinkInput = document.getElementById('referral-link-input');
+        const copyReferralLinkButton = document.getElementById('copy-referral-link');
+        const logoutButton = document.getElementById('logout-button');
+        const checkinButton = document.getElementById('checkin-button');
+        const checkinStatus = document.getElementById('checkin-status');
+        
+        // Constants
+        const DAILY_BONUS_AMOUNT = 150;
+        
+        let currentUid = null;
+        let lastCheckinDate = null;
+
+        // ============================================
+        // AUTH GUARD DENGAN DEVICE CHECK (SIMPLE)
+        // ============================================
+        auth.onAuthStateChanged(async function(user) {
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            currentUid = user.uid;
+            
+            try {
+                // Generate device ID
+                const deviceId = generateSimpleDeviceId();
+                const userDoc = await db.collection("users").doc(currentUid).get();
+                
+                if (!userDoc.exists) {
+                    await auth.signOut();
+                    window.location.href = 'index.html';
+                    return;
+                }
+                
+                const userData = userDoc.data();
+                
+                // Device check
+                if (userData.deviceId && userData.deviceId !== deviceId) {
+                    const confirmed = confirm(
+                        '⚠️ DEVICE BERBEDA TERDETEKSI!\n\n' +
+                        'Apakah ini Anda yang login?\n\n' +
+                        'OK = Lanjutkan login\n' +
+                        'Cancel = Logout dan coba lagi'
+                    );
+                    
+                    if (!confirmed) {
+                        await auth.signOut();
+                        window.location.href = 'index.html';
+                        return;
+                    }
+                    
+                    // Update device ID
+                    await db.collection("users").doc(currentUid).update({
+                        deviceId: deviceId,
+                        lastDeviceChange: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                
+                // Load user data realtime
+                loadUserData();
+                
+            } catch (error) {
+                console.error("Auth error:", error);
+                // Tetap lanjut meski error device check
+                loadUserData();
+            }
+        });
+
+        // ============================================
+        // LOAD USER DATA
+        // ============================================
+        function loadUserData() {
+            db.collection("users").doc(currentUid).onSnapshot(function(doc) {
+                if (doc.exists) {
+                    const data = doc.data();
+                    
+                    // Update UI
+                    usernameDisplay.textContent = data.username || data.email;
+                    balanceDisplay.textContent = formatIDR(data.balance || 0);
+                    referralCode.textContent = data.referral || 'N/A';
+                    
+                    // Referral link
+                    const basePath = window.location.origin + window.location.pathname.replace('dashboard.html', '');
+                    referralLinkInput.value = basePath + '?ref=' + (data.referral || '');
+                    
+                    // Check-in status
+                    if (data.lastCheckin) {
+                        lastCheckinDate = data.lastCheckin.toDate();
+                    } else {
+                        lastCheckinDate = null;
+                    }
+                    updateCheckinStatus();
+                }
+            });
+        }
+
+        // ============================================
+        // DAILY CHECK-IN SYSTEM
+        // ============================================
+        function updateCheckinStatus() {
+            const today = new Date();
+            const isSameDay = function(d1, d2) {
+                return d1.getFullYear() === d2.getFullYear() &&
+                       d1.getMonth() === d2.getMonth() &&
+                       d1.getDate() === d2.getDate();
+            };
+            
+            if (!lastCheckinDate) {
+                checkinStatus.textContent = "Siap! Klaim bonus harian pertama Anda.";
+                checkinStatus.style.color = 'var(--color-primary)';
+                checkinButton.disabled = false;
+            } else if (isSameDay(today, lastCheckinDate)) {
+                checkinStatus.textContent = "Sudah diklaim hari ini. Kembali lagi besok!";
+                checkinStatus.style.color = 'red';
+                checkinButton.disabled = true;
+            } else {
+                checkinStatus.textContent = "Ayo, klaim bonus harian Anda sekarang!";
+                checkinStatus.style.color = 'var(--color-primary)';
+                checkinButton.disabled = false;
+            }
+            
+            checkinButton.textContent = `Klaim Bonus Harian (+Rp ${DAILY_BONUS_AMOUNT})`;
+        }
+
+        // Handle check-in button
+        checkinButton.addEventListener('click', async function() {
+            if (checkinButton.disabled) return;
+            
+            checkinButton.disabled = true;
+            checkinButton.textContent = "Memproses...";
+            
+            try {
+                await db.runTransaction(async function(transaction) {
+                    const docRef = db.collection("users").doc(currentUid);
+                    const doc = await transaction.get(docRef);
+                    
+                    if (!doc.exists) throw "User not found";
+                    
+                    const userData = doc.data();
+                    let lastCheckinTS = userData.lastCheckin ? userData.lastCheckin.toDate() : null;
+                    
+                    const isSameDay = function(d1, d2) {
+                        return d1.getFullYear() === d2.getFullYear() &&
+                               d1.getMonth() === d2.getMonth() &&
+                               d1.getDate() === d2.getDate();
+                    };
+                    
+                    // Double check
+                    if (lastCheckinTS && isSameDay(new Date(), lastCheckinTS)) {
+                        throw new Error("Bonus harian sudah diklaim hari ini.");
+                    }
+                    
+                    // Update balance
+                    transaction.update(docRef, {
+                        balance: firebase.firestore.FieldValue.increment(DAILY_BONUS_AMOUNT),
+                        lastCheckin: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    // Add history
+                    await db.collection("history").add({
+                        uid: currentUid,
+                        type: "daily_checkin",
+                        amount: DAILY_BONUS_AMOUNT,
+                        description: "Bonus Klaim Harian",
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+                
+                checkinStatus.textContent = `Berhasil! Bonus Rp ${DAILY_BONUS_AMOUNT} ditambahkan.`;
+                checkinStatus.style.color = 'var(--color-primary)';
+                
+            } catch (error) {
+                console.error("Check-in error:", error);
+                checkinStatus.textContent = `Gagal: ${error.message}`;
+                checkinStatus.style.color = 'red';
+                updateCheckinStatus();
+            } finally {
+                checkinButton.disabled = false;
+            }
+        });
+
+        // ============================================
+        // REFERRAL LINK COPY
+        // ============================================
+        copyReferralLinkButton.addEventListener('click', function() {
+            const link = referralLinkInput.value;
+            navigator.clipboard.writeText(link).then(function() {
+                alert("Link undangan berhasil disalin!");
+            }).catch(function(err) {
+                console.error('Copy failed:', err);
+                alert("Gagal menyalin link. Salin manual: " + link);
+            });
+        });
+
+        // ============================================
+        // LOGOUT
+        // ============================================
+        logoutButton.addEventListener('click', async function(e) {
+            e.preventDefault();
+            
+            if (confirm("Apakah Anda yakin ingin logout?")) {
+                try {
+                    // Log logout activity
+                    if (currentUid) {
+                        await logDeviceActivity(currentUid, 'logout');
+                        localStorage.removeItem(`taskshare_device_${currentUid}`);
+                    }
+                    
+                    await auth.signOut();
+                    window.location.href = 'index.html';
+                    
+                } catch (error) {
+                    console.error("Logout error:", error);
+                    alert("Gagal logout: " + error.message);
+                }
+            }
+        });
+
+        // ============================================
+        // HELPER FUNCTIONS
+        // ============================================
+        function formatIDR(num) {
+            return new Intl.NumberFormat('id-ID', { 
+                style: 'currency', 
+                currency: 'IDR', 
+                minimumFractionDigits: 0 
+            }).format(num || 0);
+        }
+
+        // Toast warning (optional)
+        function showWarning(message) {
+            const warning = document.createElement('div');
+            warning.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #FEF3C7;
+                color: #92400E;
+                padding: 12px;
+                border-radius: 8px;
+                border-left: 4px solid #F59E0B;
+                z-index: 9999;
+                max-width: 300px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            `;
+            warning.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>
+                        <strong style="display: block; margin-bottom: 5px;">⚠️ Peringatan</strong>
+                        <div style="font-size: 0.9em;">${message}</div>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            style="margin-left: auto; background: none; border: none; color: #92400E; cursor: pointer;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(warning);
+            
+            setTimeout(function() {
+                if (warning.parentNode) warning.remove();
+            }, 5000);
+        }
+
+    </script>
+</body>
+</html>
